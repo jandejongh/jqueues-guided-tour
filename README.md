@@ -20,4 +20,4 @@ Grab the PDF file(s) in the 'doc' subdirectory, and use them to your advantage.
 Provided that you accept the LICENSE agreement, contributions to the text are more than welcome, as well as any feedback on the contents of the documentation. Please do not hesitate to contact me, or submit an issue, if the documentation is in any way unclear, incomplete or simply wrong. Needless to say, I will be more than happy to at the very least acknowledge your contribution in the documentation.
 
 ### Copyright
-The documentation presented here is copyright (C) 2010-2018 TNO and (C) 2010-2018 Jan de Jongh, The Netherlands.
+The documentation presented here is copyright (C) 2010-2018 TNO, The Netherlands, and (C) 2010-2018 Jan de Jongh, The Netherlands.
