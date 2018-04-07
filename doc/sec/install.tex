@@ -1,0 +1,149 @@
+{\bf Author's Note:} At this time of writing (end of March 2018),
+the libraries are {\em not yet\/} available from Maven Central!
+{\bf Use Option 1 below!}
+
+\section{The \texttt{jsimulation} and \texttt{jqueues} Libraries}
+
+In order to use \lstinline|jsimulation|
+  and \lstinline|jqueues|, you have to install
+  them first,
+  which requires an Internet connection.
+The first public releases of \lstinline|jqueues| and
+  \lstinline|jsimulation| have version number \lstinline|5.0.0|;
+  they were released under the Apache v2.0 license.
+From that version number onward,
+  both libraries are distributed as \lstinline|Maven|
+  projects
+  available from \lstinline|github.com|
+  and the Maven Central Repository
+  (whichever suits you).
+  
+Since both \lstinline|jsimulation|
+  and \lstinline|jqueues| are libraries
+  and hardly support stand-alone operation,
+  we assume that you intend to install
+  them both as dependencies to your own project.
+You have several options, but the two most obvious ones are:
+\begin{itemize}
+	\item Install the libraries from \lstinline|github|,
+	        open them as Maven {\em projects\/} in your IDE
+	        and add them as dependencies to your own project.
+	      If you use Maven yourself for the latter,
+	        you only have to add
+	        the dependency on \lstinline|jqueues| in the
+	        \lstinline|pom.xml|.
+	      (You do not have to add \lstinline|jsimulation|
+            because Maven does this automatically for you.)
+	\item Create your own Maven project and add
+	        \lstinline|jqueues| as a dependency,
+	        taken from the Maven Central Repository.
+\end{itemize}
+In both cases,
+  you will need \lstinline|maven| installed and properly configured on your system.
+It is also highly recommended to install
+  \lstinline|maven| support in your IDE,
+  so that it can directly open \lstinline|maven| projects.
+
+In the first case, you need \lstinline|git| as well,
+  and you should clone both libraries
+  from \lstinline|github| as shown below:
+\begin{itemize}
+	\item \lstinline|$ git clone https://www.github.com/jandejongh/jsimulation|
+	\item \lstinline|$ git clone https://www.github.com/jandejongh/jqueues|
+\end{itemize}
+Note that \lstinline|jsimulation| and \lstinline|jqueues|
+  can only be built against \lstinline|Java 1.8| and higher.
+
+In the second case,
+  add the XML fragment shown in Listing \ref{jqueues_pom_dependency}
+  to the dependencies
+  section in your \lstinline|pom.xml|.
+Please make sure that you double-check the version number in the XML file\footnote{
+You may want to verify the latest stable release number
+from either \lstinline|github| or Maven Central.
+This Guided Tour applies to release 5.1.0 and beyond.}. 
+\begin{lstfloat}
+\begin{lstlisting}[
+	caption={The \texttt{dependency} section for \texttt{jqueues} in a \texttt{pom.xml}.},
+	label=jqueues_pom_dependency,
+	basicstyle=\tiny]
+<dependency>
+	<groupId>nl.jdj</groupId>
+	<artifactId>jqueues</artifactId>
+	<version>5.1.0</version>
+	<scope>compile</scope>
+	<type>jar</type>
+</dependency>	
+\end{lstlisting}
+\end{lstfloat}
+The second case is safer as it uses stable, frozen, versions
+  of the libraries released to Maven Central.
+These releases are signed and cannot be changed without
+  increasing the version number.
+  
+\section{Version Numbering}
+
+For both libraries, we use three-level version numbering:
+\begin{itemize}
+	\item The third, lowest, level is reserved for bug fixes,
+	        \lstinline|javadoc| improvements
+	        and code (layout) "beautifications".
+	\item The second, middle, level is reserved for functional extensions
+	        that do not break existing code (with the same major version number).
+	      Think of adding another queue, job or listener type.
+	\item The third, major, level is reserved for changes to the core
+	        interfaces and classes that are likely to break existing code.
+\end{itemize}
+This implies that you can (should be able to) always "upgrade" to a later version
+  from Maven Central
+  as long as the major number remains the same.
+Upgrading from \lstinline|github.com| requires a bit of care,
+  as the latest version may not be stable yet.
+  
+Despite the fact that we take utmost efforts
+  to {\em not\/} break existing code
+  with upgrades of middle and minor version numbers,
+  we cannot always avoid this.
+For instance,
+  we may realize that a method should be
+  \lstinline|final| or \lstinline|private|
+  and attempt to fix that in an apparent innocent update,
+  but you may have overridden (or used)
+  that particular method already in your code
+  to suit your own purposes.
+Needless to say,
+  we did not expect you to override (or just use) that particular method in your code,
+  just as well as you did not expect that you were not supposed to do so.
+But in the end,
+  your code may not be compile-able after the upgrade.
+In order to avoid this, we recommend that you
+\begin{itemize}
+  \item Prefer interface methods rather than specific ones from classes,
+        since the chance that we consider updates of the interface
+        as being "minor" is virtually nil.
+  \item Only override methods for which the \lstinline|javadoc| explicitly
+        states that they are intended to be overridden.
+\end{itemize}
+
+\section{The \texttt{jqueues-guided-tour} Project}
+
+All example code shown in this document is available
+  from the \lstinline|jqueues-guided-tour|
+  project on \lstinline|github|.
+The code is organized as a Maven project.
+In addition to the example code,
+  it also contains all the source 
+  files (\LaTeX\ and other)
+  to the present document.
+Bear in mind, though, that the documentation and
+  example code in \lstinline|jqueues-guided-tour|
+  are both released under a more restrictive license than
+  \lstinline|jsimulation| and \lstinline|jqueues|.
+In short, you are allowed to use the documentation and
+  example code to whatever purpose.
+You may also redistribute both in unmodified form.
+However,
+  redistributing {\em modified\/} versions
+  of either or both of them
+  requires the explicit permission from
+  the legal copyright holder.

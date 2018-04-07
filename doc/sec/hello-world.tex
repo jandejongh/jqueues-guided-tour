@@ -1,0 +1,289 @@
+In this section,
+  we introduce our "Hello World" application for
+  \lstinline|jqueues|\footnote{
+  	In this Chapter,
+  	whenever we refer to \texttt{jqueues},
+  	we silently assume that \texttt{jsimulation}
+  	is installed as well.},
+  consisting of a \lstinline|FCFS| queue
+  subject to arrivals of jobs with varying required service times.
+
+In order to perform a simulation study in \lstinline|jqueues|,
+  the following actions need to be taken:
+\begin{itemize}
+\item The creation of an event list;
+\item The construction of one or more queues attached to the event list;
+\item The selection of the method for listening to the queue(s);
+\item The creation of a workload consisting of jobs
+        and appropriately scheduling it onto the event list;
+\item The execution of the event list;
+\item The interpretation of the results,
+        typically from the listener output.
+\end{itemize}
+Without much further ado,
+  we show our "Hello World" example
+  in Figure \ref{simExample1_main}.
+We first create a single event list of type \lstinline|DefaultSimEventList|
+  and a \lstinline|FCFS| queue attached to the event list
+  (by virtue of the argument of \lstinline|FCFS|'s constructor).
+On the queue, we register a newly created
+  \lstinline|StdOutSimEntityListener|,
+  issuing notifications to the standard output.
+Note that queues and jobs are so-called {\em entities\/};
+  these are the relevant objects with state subject to event invocation.
+Subsequently,
+  we create ten jobs named "0", "1", "2", $\ldots$,
+  scheduled for arrival at the queue
+  at $t=0$, $t=1$, $t=2$, $\ldots$,
+  respectively,
+  and set their respective service times.
+We then schedule each job arrival on the event list.
+Finally, we "run" the event list, i.e.,
+  let it process the arrivals.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={A simple simulation with a single FCFS queue and ten jobs.},
+  label=simExample1_main,
+  basicstyle=\tiny]
+
+  final SimEventList el = new DefaultSimEventList (0);
+  final SimQueue queue = new FCFS (el);
+  queue.registerSimEntityListener (new StdOutSimEntityListener ());
+  for (int j = 0; j < 10; j++)
+  {
+    final double jobServiceTime = (double) 2.2 * j;
+    final double jobArrivalTime = (double) j;
+    final String jobName = Integer.toString (j);
+    final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+    SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+  }
+  el.run ();
+
+\end{lstlisting}
+\end{lstfloat}
+
+The event list type
+  \lstinline|DefaultSimEventList|
+  will suffice for almost all practical cases,
+  but it is essential to note already that
+  a {\em single\/} event-list instance is typically used
+  throughout {\em any\/} simulation program.
+Its purpose of the event list is to hold scheduled {\em events\/}
+  in non-decreasing order of {\em schedule time},
+  and, upon request (in this case through \lstinline|el.run|),
+  starts processing the scheduled events in sequence,
+  invoking their associated {\em actions}.
+In this case,
+  the use of events remains hidden,
+  because jobs are scheduled through the use of utility method
+  \lstinline|scheduleJobArrival|.
+The zero argument to the constructor denotes
+  the simulation start time.
+If you leave it out, the start time defaults to $-\infty$.
+
+Our queue of choice is First-Come First-Served (FCFS).
+The constructor takes the event list \lstinline|el|
+  as argument.
+The queueing system consists of a queue with infinite
+  places to hold jobs,
+  and a single server that "serves" the jobs in the queue in order
+  of their arrival.
+Once a queue has finished serving the (single) job,
+  the job {\em departs\/} from the system.
+
+So how long does it take to serve a job?
+Well, in \lstinline|jqueues|,
+  the default behavior is that
+  a queue requests the job for its
+  {\em required service time}.
+In the particular case of \lstinline|DefaultSimJob|
+  (there are many more job types),
+  we provide a fixed service time (at {\em any\/} queue)
+  upon creation through the third argument of the constructor.
+  
+The first argument of the \lstinline-DefaultSimJob-
+  is the event list to which it is to be attached.
+For jobs (well, at least the ones derived from \lstinline|DefaultSimJob|),
+  it is often safe to set this to \lstinline|null|,
+  although we could have equally well set it to \lstinline|el|.
+However, {\em queues must always be attached to the event list\/};
+  a \lstinline|null| value upon construction will throw an exception.
+
+The (approximate) output of the code fragment
+  of Listing \ref{simExample1_main}
+  is shown in Listing \ref{simExample1_out} below.
+Remarkably,
+  the listing only shows two types of notifications,
+  viz.,
+  \lstinline|UPDATE|
+  and
+  \lstinline|STATE_CHANGED|,
+  the latter of which can hold
+  multiple "sub"-notifications.
+Each notification outputs
+  the name of the listener,
+  the time on the event list,
+  the queue (entity) that issues the notification,
+  the notification's actual "major" type
+  (\lstinline|UPDATE| or \lstinline|STATE_CHANGED|)
+  and, if present,
+  the sub-notifications.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Example output of Listing \ref{simExample1_main}.},
+  label=simExample1_out,
+  basicstyle=\tiny]
+
+StdOutSimEntityListener t=0.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[0]@FCFS]
+  => START [Start[0]@FCFS]
+  => DEPARTURE [Dep[0]@FCFS]
+StdOutSimEntityListener t=1.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=1.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[1]@FCFS]
+  => START [Start[1]@FCFS]
+  => STA_FALSE [StartArmed[false]@FCFS]
+StdOutSimEntityListener t=2.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=2.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[2]@FCFS]
+StdOutSimEntityListener t=3.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=3.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[3]@FCFS]
+StdOutSimEntityListener t=3.2, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=3.2, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[1]@FCFS]
+  => START [Start[2]@FCFS]
+StdOutSimEntityListener t=4.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=4.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[4]@FCFS]
+StdOutSimEntityListener t=5.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=5.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[5]@FCFS]
+StdOutSimEntityListener t=6.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=6.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[6]@FCFS]
+StdOutSimEntityListener t=7.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=7.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[7]@FCFS]
+StdOutSimEntityListener t=7.6000000000000005, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=7.6000000000000005, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[2]@FCFS]
+  => START [Start[3]@FCFS]
+StdOutSimEntityListener t=8.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=8.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[8]@FCFS]
+StdOutSimEntityListener t=9.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=9.0, entity=FCFS: STATE CHANGED:
+  => ARRIVAL [Arr[9]@FCFS]
+StdOutSimEntityListener t=14.200000000000001, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=14.200000000000001, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[3]@FCFS]
+  => START [Start[4]@FCFS]
+StdOutSimEntityListener t=23.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=23.0, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[4]@FCFS]
+  => START [Start[5]@FCFS]
+StdOutSimEntityListener t=34.0, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=34.0, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[5]@FCFS]
+  => START [Start[6]@FCFS]
+StdOutSimEntityListener t=47.2, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=47.2, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[6]@FCFS]
+  => START [Start[7]@FCFS]
+StdOutSimEntityListener t=62.60000000000001, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=62.60000000000001, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[7]@FCFS]
+  => START [Start[8]@FCFS]
+StdOutSimEntityListener t=80.20000000000002, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=80.20000000000002, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[8]@FCFS]
+  => START [Start[9]@FCFS]
+StdOutSimEntityListener t=100.00000000000001, entity=FCFS: UPDATE.
+StdOutSimEntityListener t=100.00000000000001, entity=FCFS: STATE CHANGED:
+  => DEPARTURE [Dep[9]@FCFS]
+  => STA_TRUE [StartArmed[true]@FCFS]
+
+\end{lstlisting}
+\end{lstfloat}
+
+Apart from the \lstinline-STATE CHANGED-, \lstinline-UPDATE-
+  and \lstinline-START_ARMED- lines in the output,
+  the notifications pretty much speak for themselves.
+We even get notified when jobs start service (\lstinline-START-).
+The \lstinline-START_ARMED- notifications
+  refer to state changes in a special \lstinline|boolean| attribute of a
+  queue named its \lstinline-StartArmed- property.
+Since you will hardly need it in practical applications,
+  we will not delve into it,
+  but it is crucial for the implementation
+  of certain more complex (composite) queueing systems.
+Suffice it to say that the \lstinline|StartArmed| property
+  {\em in this particular case\/}
+  signals whether the queue is idle.
+
+The two top-level notification types,
+  \lstinline|UPDATE| and \lstinline|STATE CHANGED|
+  are essential.
+Upon every change to a queue's state,
+  the queue is obliged to issue the fundamental \lstinline|STATE CHANGED| notification,
+  exposing the queue's new state (including its notion of time).
+The \lstinline|UPDATE| notification
+  has the same function,
+  but it is fired {\em before\/} any changes have been applied,
+  thus revealing the queue's {\em old\/} state,
+  including the time at which the old state was obtained.
+Hence,
+  every \lstinline|STATE CHANGED| notification
+  {\em must\/} be preceded with an
+  \lstinline|UPDATE| notification.
+The \lstinline|UPDATE| notification is
+  crucial for the implementation of statistics
+  (among others).
+  
+The use of \lstinline|STATE_CHANGED| notifications may
+  appear strange at first sight
+  as many other implementations would
+  report each of the sub-notifications individually.
+However, an important aspect of a queue's contract is that
+  {\em it must report state changes atomically
+       in order to meet queue invariants}.
+This means that listeners,
+  when notified,
+  will always see the queue in a consistent state,
+  i.e., in a state that respects the invariant(s).
+This is one of the (we think) most distinguishing features of
+  \lstinline|jqueues|.
+Going back to our example: An important invariant of FCFS
+  and many other queueing systems
+  is that there cannot be jobs
+  waiting in queue while the server is idle.
+It is easy to see that individual notifications for
+  \lstinline|ARRIVAL| and \lstinline|START| would
+  lead to violations of this invariant:
+  Suppose that a job arrives at an idle FCFS queue.
+  Using individual notifications,
+  the queue has no other option than to
+  issue a \lstinline|ARRIVAL|
+  notification
+  immediately followed by a \lstinline|START|.
+In between both, the queue would expose a state
+  that is inconsistent with the invariant
+  because the server is idle (the job has not started yet),
+  while there is a job in its waiting queue.
+Note that another invariant of FCFS is that
+  it cannot be serving jobs with zero required service time.
+This explains the arrival, start and departure sub-notifications
+  for job $0$ are all in a single atomic \lstinline|STATE_CHANGED|.
+  
+This concludes our "Hello World" example.
+There is obviously a lot more to tell,
+  but the good news is that our example
+  has already revealed the most important concepts
+  of \lstinline|jqueues| like
+  the event list, events, entities, queues, jobs, listeners
+  and notifications.
+The remaining complexity is in the richness and variation of these
+  basic concepts.

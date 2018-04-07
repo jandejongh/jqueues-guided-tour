@@ -1,0 +1,115 @@
+Personally,
+  I (merely) scratched the surface of queueing theory
+  at Twente University back in the eighties,
+  while working on my Master's Thesis
+  on an operating system for {\em transputers}.
+Transputers are fast RISC processors
+  with multiple on-chip communication links;
+  back then, they were envisioned to become the building blocks
+  of future massively parallel computer systems.
+Since our main applications of interest were in robotics,
+  I attempted basic queueing theory in an attempt to find
+  hard real-time response-time guarantees,
+  in order to meet physical-world, mostly safety-related, deadlines.
+
+During the largest part of the nineties,
+  I worked on my PhD at Delft University of Technology.
+This time,
+  I got to study queueing systems modeling
+  {\em distributed computing systems},
+  which by then had overtaken parallel systems
+  in terms of scientific interest.
+The main purpose of the research was to devise
+  and analyze scheduling strategies for
+  dividing in space and in time
+  the computing resources of a
+  (closed) distributed system among groups of users,
+  according to predefined policies (named
+  {\em share scheduling\/} at that time).
+In order to gain quantitative insight,
+  I used the classic \lstinline|DEMOS|
+  (Discrete Event Modeling On Simula) software
+  running on the \lstinline|SIMULA|
+  programming language.
+I made several modifications and extensions to the software,
+  in order for it to suit my needs.
+For instance,
+  it lacked support for so-called
+  {\em processor-sharing\/}
+  queueing disciplines in which
+  a server ("processor") distributes
+  at any time its service capacity
+  among (a subset of) jobs present.
+In addition,
+  I needed a non-standard set of statistics
+  gathered from the simulation runs.
+In the end,
+  both \lstinline|DEMOS| and \lstinline|SIMULA| itself
+  proved flexible enough to study the research questions.
+
+Like \lstinline|DEMOS|,
+  the \lstinline|jsimulation|
+  and \lstinline|jqueues|
+  \lstinline|Java|
+  software packages described in this book
+  feature discrete-event simulation
+  of queueing systems.
+The libraries are, as a combo,
+  somewhat comparable to
+  the \lstinline|DEMOS|,
+  yet there are important differences nonetheless.
+For instance, the libraries
+  focus exclusively at {\em algorithmic\/}
+  modeling of queueing systems and job visits;
+  they do not cover additionally required features
+  like sophisticated random-number generation,
+  probability distributions,
+  gathering and analyzing statistics,
+  and sophisticated reporting;
+  features all integrated in \lstinline|DEMOS|.
+In that sense, \lstinline|DEMOS|
+  is a more complete package.
+On the other hand,
+  the packages feature a larger range of
+  queueing-system types,
+  and, for instance,
+  a model for constructing new queueing systems
+  through {\em composition\/} of
+  other queues.
+In addition,
+  much care has been put into the
+  {\em atomicity\/} of certain events,
+  which allows for a wider range of
+  {\em queue invariants\/} supported.
+Despite these differences,
+  \lstinline|DEMOS| has been a major inspiration
+  in the design and implementation of
+  \lstinline|jsimulation|
+  and \lstinline|jqueues|.
+
+For my current employer, TNO,
+  I have performed, over the past decade
+  (or even decades?),
+  many simulation studies in \lstinline|Java|
+  related to the vehicle-to-vehicle communications
+  in (future) Intelligent Transportation Systems,
+  studying, for instance,
+  position dissemination over CSMA/CA wireless networks
+  for Cooperative Adaptive Cruise Control
+  and Platooning.
+At some point,
+  I realized that it would be feasible to
+  extract some useful and stable
+  \lstinline|Java| libraries from my ever increasing
+  software repositories,
+  and release them into the public domain.
+So, in a way,
+  the libraries can be considered "collateral damage" from a variety of projects.
+
+% I have dedicated the software and this documentation,
+%   with gratitude,
+%   to the designer of \lstinline|DEMOS|,
+%   Graham Birtwistle
+%   and, in memory,
+%   to the designers of \lstinline|SIMULA|,
+%   Ole-Johan Dahl and Kristen Nygaard.

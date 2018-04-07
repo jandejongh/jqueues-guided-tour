@@ -1,0 +1,131 @@
+\documentclass[12pt]{book}
+
+%\usepackage{color}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{tabu}
+\usepackage{cite}
+\usepackage{url}
+% \usepackage{hyperref}
+
+\title{Discrete-Event Simulation\\
+       of Queueing Systems in \texttt{Java}:\\
+       The \texttt{jsimulation}
+       and
+       \texttt{jqueues}
+       Libraries\\
+       \mbox{ } \\
+       Guided Tour}
+\author{Jan de Jongh}
+\date{Release 5\\
+	  \mbox{ } \\
+	  {\bf DRAFT}\\
+	  \mbox{ }
+	  \\{\bf Print/Release Date 20180407}}
+
+\lstset
+{
+  language=Java,
+  basicstyle=\ttfamily,
+  commentstyle=\textit,
+  keywordstyle=\color{red}\bfseries,
+  tabsize=2,
+  frame=single,
+  escapeinside={<@}{@>}
+}
+
+\newfloat{lstfloat}{htbp}{lop}
+\floatname{lstfloat}{Listing}
+
+\begin{document}
+
+\maketitle
+
+% \chapter*{}
+% \begin{center}
+% {\em Dedicated to Graham Birtwistle.} \\
+% \mbox{ } \\
+% {\em In memory of Ole-Johan Dahl and Kristen Nygaard.}
+% \end{center}
+
+\chapter*{Preface}
+\label{chap:preface}
+\input{sec/preface}
+
+\chapter{Introduction}
+\label{chap:intro}
+\input{sec/intro}
+
+\chapter{Installation}
+\label{chap:install}
+\input{sec/install}
+
+\chapter{Hello World: FCFS}
+\label{chap:hello-world}
+\input{sec/hello-world}
+
+\chapter{Events, Actions and the Event List}
+\label{chap:events-actions-event-list}
+\input{sec/events-actions-event-list}
+
+\chapter{Entities}
+\label{chap:entities}
+\input{sec/entities}
+
+\chapter{Listeners}
+\label{chap:listeners}
+\input{sec/listeners}
+
+\chapter{Generic Queue Model}
+\label{chap:generic-queue-model}
+\input{sec/generic-queue-model}
+
+\chapter{Generic Job Model}
+\label{chap:generic-job-model}
+\input{sec/generic-job-model}
+
+\chapter{Utility Methods for Scheduling on the Event List}
+\label{chap:utility-scheduling}
+\input{sec/utility-scheduling}
+
+\chapter{QoS Queues}
+\label{chap:qos-queues}
+\input{sec/qos-queus}
+
+\chapter{Composite Queues}
+\label{chap:composite-queues}
+\input{sec/composite-queues}
+
+\chapter{Queue Implementations}
+\label{chap:queue-implementations}
+\input{sec/queue-implementations}
+
+\chapter{Job Implementations}
+\label{chap:job-implementations}
+\input{sec/job-implementations}
+
+\chapter{Statistics}
+\label{chap:statistics}
+\input{sec/statistics}
+
+\chapter{Use Case: The M/M/1 Queueing System}
+\label{chap:m-m-1}
+\input{sec/m-m-1}
+
+\chapter{Atomicity and Invariants}
+\label{chap:atomicity-invariants}
+\input{sec/atomicity-invariants}
+
+\chapter{Further Reading}
+\label{chap:further-reading}
+\input{sec/further-reading}
+
+\bibliography{bib/JQueuesGuidedTour}{}
+\bibliographystyle{plain}
+
+\end{document}

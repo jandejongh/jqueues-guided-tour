@@ -1,0 +1,110 @@
+Queueing systems deal with the general notion of {\em waiting\ }
+  for (the completion of) "something".
+They are ubiquitously and often annoyingly present in our everyday lives.
+If there is anything we do most in life,
+  it is probably {\em waiting\ } for something to
+  happen (finally winning a non-trivial prize in the State Lottery
+          after paying monthly tickets over the past thirty years),
+  arrive (the breath-taking dress we ordered from that webshop
+          against warnings in the seller's reputation blog),
+  change (the reception of many severely bad hands in the poker game
+          we just happened to ran into),
+  stop (the constant flipping into red of traffic lights
+        while we are just within breaking distance
+        in our urban environment),
+  or
+  resume (the heater that regularly happens to have
+          a mind of its own during
+          winter months).
+
+Queueing systems also appear in computer systems and networks,
+  in which they schedule available shared resources
+  like processors, memory, and network ports
+  among clients like
+  computing applications.
+Or in wireless communications,
+  where so-called 'listen-before-talk'
+  access protocols (CSMA/CA) as used in wireless Local Area Networks
+  monitor the received power level at the input stage
+  in order to assess whether the
+  transmission medium is idle
+  before attempting to transmit.
+Or in automated production lines,
+  where a partial product is routed to visit
+  several service stations in sequence,
+  each of them performing a specific task to the
+  product.
+
+Perhaps surprisingly given their wide variety in terms of applications,
+  queueing systems usually share a common concept:
+  a set of objects we will call {\em jobs\/}
+  has to visit a set of objects we will call {\em queues},
+  in order to get something done.
+Depending on the complexity of the task to be performed,
+  on the service capacity of the queue,
+  and on the available competition among jobs,
+  such a visit may vary in length (i.e., in sojourn time).
+This perhaps explains the great interest from the mathematical community
+  in {\em queueing theory\/}:
+  One often needs only a handful of variables and assumptions
+    in order to model a wide range of applications.
+In most cases,
+  the effects of these assumptions
+  are modeled with
+  suitable stochastic processes.
+
+Despite great results in deriving closed-form analytic expressions
+  for many queueing models,
+  many more others are mathematically intractable.
+In order to gain quantitative insight into these models,
+  one often resorts or needs to resort to {\em discrete-event simulation},
+  appropriately modeling queue scheduling behavior,
+  and subjecting it to a workload consisting of jobs
+  with appropriate parameters
+  as to the amount of work each job requires,
+  and the time between consecutive job arrivals.
+Even though discrete-event simulation
+  does not provide closed-form solutions,
+  they are often very handy and capable of,
+  for instance, quantitative comparisons
+  between various scheduling strategies.
+
+This document introduces \lstinline|jsimulation|
+  and \lstinline|jqueues|,
+  open-source \lstinline|java|
+  software libraries
+  for discrete-event simulation of queueing systems.
+Its main purpose is to expose you to the most
+  important concepts in the libraries,
+  and to get you going with your simulation studies.
+By no means is this document complete
+  in its description of \lstinline|jsimulation|
+  and \lstinline|jqueues|,
+  nor is it intended to be,
+  and for more detailed information we refer the reader to the
+  "JQueues Reference Manual"\footnote{
+The JQueues Reference Manual is currently being written,
+  and will be available as an e-Book.}
+  if you need precise specification
+  of the libraries, and to the "JQueues Developer Manual"\footnote{
+  	The JQueues Developer Manual is currently being written,
+  	and will be available as an e-Book.}
+  if you want or need to extend either library
+  (e.g., to add your own queueing discipline).
+
+In Section \ref{chap:install} of the present document
+  we provide installation (and build) instructions,
+  and in Section \ref{chap:hello-world}
+  we present our "Hello World" example.
+In subsequent sections, in rather random order,
+  we provide additional details and examples on
+  the use of both libraries;
+  attempting to allow linear reading.
+However,
+  this is a living document
+  and sections are added on demand and when time permits.
+
+Any feedback on the clarity and/or correctness of the text
+  is highly appreciated.
+Please use the {\em Issues\/} section on \lstinline|github| to that purpose\footnote{
+  See \texttt{https://github.com/jandejongh/jqueues-guided-tour}.}.

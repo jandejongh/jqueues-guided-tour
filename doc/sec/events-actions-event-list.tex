@@ -1,0 +1,1284 @@
+This chapter describes the event and event-list features
+  that are available from the \lstinline{jsimulation} package.
+Note that \lstinline{jsimulation} is a dependency of \lstinline{jqueues}.
+
+\section{Creating the Event List and Events}
+
+At the very heart of every simulation experiment
+  in \lstinline{jqueues}
+  is the so-called {\em event list}.
+The event list obviously holds the events,
+  keeps them ordered,
+  and maintains a notion of "where we are" in a simulation run.
+Together, an event list and the events it contains define
+  the precise sequence of actions taken in a simulation.
+The following code snipplet shows how to create an event list and
+  schedule two (empty) events, one at $t_{1}=5.0$ and one at $t_{2}=10$,
+  and print the resulting event list on \lstinline{System.out}:
+\begin{lstlisting}
+final SimEventList el = new DefaultSimEventList ();
+final SimEvent e1 = new DefaultSimEvent (5.0);
+final SimEvent e2 = new DefaultSimEvent (10.0);
+el.add (e1);
+el.add (e2);
+el.print ();
+\end{lstlisting}
+In \lstinline{jsimulation},
+  the event list is of type \lstinline{SimEventList};
+  events are of type \lstinline{SimEvent},
+  respectively.
+Since both of them are Java {\em interfaces}, you need implementing classes
+  to instantiate them: \lstinline{DefaultSimEventList} for an event list;
+  \lstinline{DefaulSimEvent} for an event.
+Typically,
+  you instantiate a single event list for a simulation experiment,
+  and numerous events.
+
+The \lstinline{double} argument in the \lstinline{DefaultSimEvent} constructor
+  (of which there are several)
+  is the {\em schedule time\/} of the event on the event list.
+Perhaps surprisingly,
+  in \lstinline{jsimulation},
+  the schedule time is actually held on the event,
+ {\em not\/} on the event list.
+Also, a \lstinline{SimEventList} is inheriting from \lstinline{SortedSet}
+  from the Java Collections Framework.
+These choices have the following consequences:
+\begin{itemize}
+  \item Each \lstinline{SimEvent} can be present {\em at most once\/} in a \lstinline{SimEventList}.
+        You cannot reuse a single event instance (like a job creation and arrival event)
+          by scheduling it multiple times on the event list.
+        Instead, you must either use separate event instances, or reschedule the event
+          the moment it leaves the event list.
+  \item You cannot (more precisely, {\em should not\/}) modify the time on the event while it is
+          scheduled on an event list.
+  \item You always have access to the (intended) schedule time of the event, without having to
+          refer to an event list (if the event is scheduled at all) or use a separate
+          variable to keep and maintain that time.
+  \item The events must be equipped with a {\em total ordering\/} (imposed by \lstinline{SortedSet})
+          and distinct events should not be equal (imposed by us).
+          This means that for each pair of (distinct) events scheduled on a \lstinline{SimEventList},
+          one of them is always strictly larger than the other
+          (in the ordering, they cannot be "equal").
+\end{itemize}
+
+The output of the code snipplet is something like\footnote{
+We may have improved the layout in the meantime.}:
+\begin{lstlisting}[basicstyle=\tiny]
+SimEventList {X}.DefaultSimEventList@{Y}, class=DefaultSimEventList, time=-Infinity:
+  t=5.0, name=No Name, object=null, action=null.
+  t=10.0, name=No Name, object=null, action=null.
+\end{lstlisting}
+The output shows the name of the event list (as obtained from its \lstinline{toString} method)
+  and the current time ($-\infty$) in the first row, and then the events in the list
+  in the proper order.
+By the way, we modified the output; the markers \lstinline|{X}| and \lstinline|{Y}|
+  represents strings that most likely deviate on your system.
+
+The output also shows the four properties of an event: its time, name, user object, and action.
+These will be described in more detail in the next section.
+
+\section{Event Properties and Event Constructors}
+
+A \lstinline{SimEvent} has the following properties:
+\begin{itemize}
+\item Time:   The (intended) schedule time of the event (default $-\infty$).
+\item Name:   The name of the event, which is only used for logging and output (default "No Name").
+\item Object: A general-purpose object available for storing information associated with the event
+              (\lstinline{jsimulation} nor \lstinline{jqueues} uses this field; its
+              default value is \lstinline{null}).
+\item Action: The action to take, a \lstinline{SimEventAction} (default \lstinline{null}),
+                described in the next section.
+\end{itemize}
+Each property has corresponding getter and setter methods:
+
+\begin{tabular}{|l|}
+  \hline
+  {\bf Properties of \lstinline|SimEvent|} \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!double getTime ()! \\
+  \lstinline[basicstyle=\footnotesize]!void setTime (double)! \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!String getName ()! \\
+  \lstinline[basicstyle=\footnotesize]!void setName (String)! \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!T getObject ()! \\
+  \lstinline[basicstyle=\footnotesize]!void setObject (T)! \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!SimEventAction getEventAction ()! \\
+  \lstinline[basicstyle=\footnotesize]!void setEventAction (SimEventAction)! \\
+  \hline
+\end{tabular}
+
+Note that \lstinline{T} refers to the so-called {\em generic-type argument\/}
+  of \lstinline{SimEvent} (and also of \lstinline|DefaultSimEvent|).
+The prototype is \lstinline|SimEvent<T>|, so \lstinline|T| can be any object type.
+The use of generic types is explained in some more details in the "Advanced Topics" section,
+  but for now \lstinline!T! can be simply read as a \lstinline{Object}.
+
+The next section describes the actions in more detail, but we first provide a list
+  of constructors for \lstinline{DefaultSimEvent}:
+
+\begin{tabular}{|l|}
+  \hline
+  {\bf Constructors of \lstinline|DefaultSimEvent|} \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!DefaultSimEvent (String, double, T, SimEventAction)! \\
+  \lstinline[basicstyle=\footnotesize]!DefaultSimEvent (double, T, SimEventAction)! \\
+  \lstinline[basicstyle=\footnotesize]!DefaultSimEvent (double, SimEventAction)! \\
+  \lstinline[basicstyle=\footnotesize]!DefaultSimEvent (double)! \\
+  \lstinline[basicstyle=\footnotesize]!DefaultSimEvent ()! \\
+  \hline
+\end{tabular}
+
+Any non-listed property in a constructor will obtain its default value.
+
+\section{Actions}
+
+A \lstinline{SimEventAction} defined what needs to be done by the time an event
+  is {\em executed\/} or {\em processed}.
+In Java terms, a \lstinline{SimEventAction} is an interface with
+  a single abstract method which is invoked when the event is processed.
+Below we show the declaration of the interface:
+\begin{lstlisting}[basicstyle=\tiny]
+@FunctionalInterface
+public interface SimEventAction<T>
+{
+
+  /** Invokes the action for supplied {@link SimEvent}.
+   *
+   * @param event The event.
+   *
+   * @throws IllegalArgumentException If <code>event</code> is <code>null</code>.
+   * 
+   */
+  public void action (SimEvent<T> event);
+
+}
+\end{lstlisting}
+
+There are several ways to create actions for events.
+The first and most often used way in our own code is to use anonymous inner classes:
+\begin{lstlisting}[basicstyle=\tiny]
+final SimEventList el = new DefaultSimEventList ();
+final SimEvent e =
+  new DefaultSimEvent ("My First Real Event", 5.0, null, new SimEventAction ()
+  {
+    @Override
+    public final void action (final SimEvent event)
+    {
+      System.out.println ("Event=" + event + ", time=" + event.getTime () + ".");
+    }
+    @Override
+    public String toString ()
+    {
+      return "My First Action";
+    }
+  });
+el.add (e);
+el.print ();
+el.run ();
+el.print ();
+\end{lstlisting}
+Note that we are now using the full \lstinline{DefaultSimEvent} constructor,
+  passing a name, and supplying a \lstinline{SimEventAction}
+  as an anonymous inner class.
+In the inner class, we define the \lstinline{action} method,
+  and in the meantime override the \lstinline{toString} method
+  (to be honest, this was merely to keep the generated text within bounds).
+The generated output is:
+\begin{lstlisting}[basicstyle=\tiny]
+SimEventList {X}.DefaultSimEventList@{Y}, class=DefaultSimEventList, time=-Infinity:
+  t=5.0, name=My First Real Event, object=null, action=My First Action.
+Event=My First Real Event, time=5.0.
+SimEventList {X}.DefaultSimEventList@{Y}, class=DefaultSimEventList, time=5.0:
+  EMPTY!
+\end{lstlisting}
+Clearly, as expected!
+However, rote that after "running" the event list, it turns out to be empty,
+  and its time is now $t=5.0$, the schedule time of our event.
+This is as intended, and will be explained in the next section.
+But first we look at an alternative way of attaching
+  actions to events:
+\begin{lstlisting}[basicstyle=\tiny]
+final SimEventList el = new DefaultSimEventList ()
+{
+  @Override
+  public final String toString ()
+  {
+    return "My Renamed Event List";
+  } 
+};
+final SimEventAction action = new SimEventAction ()
+{
+  @Override
+  public final void action (final SimEvent event)
+  {
+      System.out.println ("Event=" + event + ", time=" + event.getTime () + ".");
+  }
+  @Override
+  public final String toString ()
+  {
+    return "A Shared Action";
+  }
+};
+for (int i = 1; i <= 10; i++)
+{
+  final SimEvent e = new DefaultSimEvent ("Our Event", (double) i, null, action);
+  el.add (e);
+}
+el.print ();
+el.run ();
+el.print ();
+\end{lstlisting}
+In this example, we created a single action object
+  (again using an anonymous inner class),
+  and reuse it among ten distinct events we schedule
+  (we cannot reuse those).
+We also took the opportunity give our
+  event list a friendlier name by overriding its \lstinline{toString} method.
+The output is as follows:
+\begin{lstlisting}[basicstyle=\tiny]
+SimEventList My Renamed Event List, class=, time=-Infinity:
+  t=1.0, name=Our Event, object=null, action=A Shared Action.
+  t=2.0, name=Our Event, object=null, action=A Shared Action.
+  t=3.0, name=Our Event, object=null, action=A Shared Action.
+  t=4.0, name=Our Event, object=null, action=A Shared Action.
+  t=5.0, name=Our Event, object=null, action=A Shared Action.
+  t=6.0, name=Our Event, object=null, action=A Shared Action.
+  t=7.0, name=Our Event, object=null, action=A Shared Action.
+  t=8.0, name=Our Event, object=null, action=A Shared Action.
+  t=9.0, name=Our Event, object=null, action=A Shared Action.
+  t=10.0, name=Our Event, object=null, action=A Shared Action.
+Event=Our Event, time=1.0.
+Event=Our Event, time=2.0.
+Event=Our Event, time=3.0.
+Event=Our Event, time=4.0.
+Event=Our Event, time=5.0.
+Event=Our Event, time=6.0.
+Event=Our Event, time=7.0.
+Event=Our Event, time=8.0.
+Event=Our Event, time=9.0.
+Event=Our Event, time=10.0.
+SimEventList My Renamed Event List, class=, time=10.0:
+  EMPTY!
+\end{lstlisting}
+Again note that the time on the event list after running it
+  is the time of the last event we scheduled on it.
+In the output, funny enough, the \lstinline{class} of the event list
+  is now reported as empty.
+This is because we used an anonymous class to construct it!
+
+So, there are different ways of attaching a \lstinline{SimEventAction}
+  to a \lstinline{DefaultSimEvent}.
+The abundant use of anonymous inner classes as shown here
+  is certainly not to everyone's taste,
+  but it results in relatively compact code
+  (even more through the use of lambda expressions, see {\bf XXX}).
+
+\section{Processing the Event List}
+
+Once the events of your liking are scheduled on the event list,
+  you can start the simulation by {\em processing\/} or {\em running\/}
+  the event lists.
+Processing the event list will cause the event list to
+  equentially invoke the actions attached to the events
+  in increasing-time order.
+There are several ways to process a \lstinline{SimEventList}:
+\begin{itemize}
+  \item You can process the event list until it is empty with the \lstinline{run} method.
+  \item You can process the event list until some specified (simulation) time with the
+          \lstinline{runUtil} method.
+  \item You can {\em single-step\/} through the event list with the
+          \lstinline{runSingleStep} method.
+\end{itemize}
+You can check whether an event list is being processed through its \lstinline{isRunning}
+  method.
+
+While processing, the event list maintains a {\em clock}
+  holding the (simulation) time of the current event.
+You can get the time from the event list through \lstinline{getTime} nethod,
+  although you can obtain it more easily from the event itself.
+You can insert new events while it is being processed,
+  {\em but these events must not be in the past}.
+Once the event list detects insertion of events in the past,
+  it will throw and exception.
+
+Note that processing the event list
+  is thread-safe in the sense that all methods involved
+  need to obtain a {\em lock} before being able to process the list.
+Trying to process an event list that is already being processed
+  from another thread,
+  or from the thread that currently processes the list,
+  will lead to an exception.
+Note that currently there is no safe, atomic, way
+  to process an event list on the condition that is
+  is not being processed already.
+Though you can check with \lstinline{isRunning}
+  whether the list is being processed or not,
+  the answer from this method has zero validity lifetime.
+
+The example below shows how to schedule new events
+  from event actions; it also shows what happens if you schedule
+  events in the past.
+\begin{lstlisting}[basicstyle=\tiny]
+final SimEventList el = new DefaultSimEventList ()
+{
+  @Override
+  public final String toString ()
+  {
+    return "The Event List";
+  } 
+};
+
+final SimEventAction schedulingAction = new SimEventAction ()
+{
+  private int counter = 0;
+  @Override
+  public final void action (final SimEvent event)
+  {
+      System.out.println ("Event=" + event + ", time=" + event.getTime () + ".");
+      counter++;
+      if (counter < 10)
+        // Schedule 1 second from now.
+        // Use utility method on SimEventList.
+        el.schedule (event.getTime () + 1, this);
+      else if (counter == 10)
+      {
+        // Schedule now.
+        el.schedule (event.getTime (), this);
+        System.out.println ("Scheduled event now.");
+      }
+      else
+      {
+        // Schedule 1 second in the past -> throws exception.
+        el.schedule (event.getTime () - 1, this);
+        // Never reached.
+        System.out.println ("Scheduled event in the past.");
+      }
+  }
+  @Override
+  public final String toString ()
+  {
+    return "Scheduling Action";
+  }
+};
+    
+el.schedule (0, schedulingAction);
+el.print ();
+el.run ();
+el.print ();
+\end{lstlisting}
+The code begins to look familiar.
+First, we create the event list, then a single action.
+The action is a bit more complicated than before;
+  it has an internal \lstinline{counter} in the anynoumous class.
+Using the counter, it reschedules itself ten times,
+  the first nine times one second in the future,
+  the tenth time at exactly the same time.
+As mentioned before, this is perfectly legal
+  (and, in fact, often used in our own code).
+The final attempt to reschedule the action results in an
+  exception, because the event is scheduled in the past.
+Note that the example also showcases a utility method
+  in \lstinline{SimEventList}, viz., \lstinline{schedule (double, SimEventAction)},
+  which directly schedules the action on the event list at given time,
+  creating a new \lstinline{SimEvent} on the fly.
+In a later section we will look in more detail at more utility methods
+  on event lists.
+
+The output of the example is shown below\footnote{
+  For improved reading, we have left out the full stack-trace of the exception,
+  and rearranged the mixed outputs from \lstinline{System.out} and \lstinline{System.err}.
+  We will do that without notice in the sequel.
+}.
+\begin{lstlisting}[basicstyle=\tiny]
+SimEventList The Event List, class=, time=-Infinity:
+  t=0.0, name=No Name, object=null, action=Scheduling Action.
+Event=No Name, time=0.0.
+Event=No Name, time=1.0.
+Event=No Name, time=2.0.
+Event=No Name, time=3.0.
+Event=No Name, time=4.0.
+Event=No Name, time=5.0.
+Event=No Name, time=6.0.
+Event=No Name, time=7.0.
+Event=No Name, time=8.0.
+Event=No Name, time=9.0.
+Scheduled event now.
+Event=No Name, time=9.0.
+Exception in thread "main" java.lang.IllegalArgumentException:
+Schedule time is in the past: 8.0 < 9.0!
+\end{lstlisting}
+Note that in this particular case,
+  the exception thrown actually comes with an
+  instructive message as to what caused it
+  (you tried to schedule something on the event list at $t=8.0$,
+   whereas the current time is beyond that, $t=9.0$).
+However, in all honesty,
+  such messages are not present
+  for the majority of exceptions thrown
+  as a result of incorrect arguments from user code.
+We are currently working on improving this.
+
+The output also shows the expected result from the first \lstinline{el.print} statement:
+Only a single event is scheduled!
+The others are created and scheduled while the event list is being processed.
+It is important to realize that the contents of a \lstinline{SimEventList}
+  can always change, as long as these are changes {\em now or in the future}.
+By the way, the second invocation of \lstinline{el.print} does not stand a chance;
+  it is unreachable because of the exception thrown in \lstinline{el.run}.
+
+\section{Utility Methods for Scheduling Events}
+
+A \lstinline{SimEventList} supports various methods for
+  directly scheduling events and actions
+  without the need to generate both
+  the \lstinline{SimEvent} {\em and\/} the \lstinline{SimEventAction}.
+In most cases, the availability of one of the object suffices.
+Below we show the most common utility methods for scheduling on a \lstinline{SimEventList}.
+
+\begin{tabular}{|l|}
+  \hline
+  {\bf Utility methods for scheduling} \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!void schedule (E)! \\
+    Schedules the event at its own time.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!void schedule (double, E)! \\
+    Schedules the event at given time.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!reschedule (double, E)! \\
+    Reschedules (if present, else schedules) the event at given new time.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!E schedule (double, SimEventAction, String)! \\
+    Schedules the action at given time with given event name.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!void scheduleNow (E)! \\
+    Schedules the event now.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!E schedule (double, SimEventAction)! \\
+    Schedules the action at given time with default event name.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!E scheduleNow (SimEventAction, String)! \\
+    Schedules the action now with given event name.\\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!E scheduleNow (SimEventAction)! \\
+    Schedules the action now with default event name.\\
+  \hline
+\end{tabular}
+
+Note that \lstinline{E} refers to the so-called {\em generic-type argument\/}
+  of \lstinline{SimEventList}.
+The prototype is \lstinline!SimEventList<E extends SimEvent>!.
+The use of generic types is explained in some more details in the "Advanced Topics" section,
+  but for now \lstinline!E! can be simply read as a \lstinline{SimEvent}.
+
+For any of the utilty methods that take a \lstinline{SimEventAction}
+  as argument, a new \lstinline{SimEvent} is created on the fly,
+  and returned from the method.
+Upon return from these methods,
+  the newly created event has already been scheduled,
+  and you {\em really\/} should not schedule it again.
+
+You may wonder how to {\em remove\/} events and actions from the event list.
+Well, since \lstinline{SimEventList} implements the \lstinline{Set} interface for
+  \lstinline{SimEvent} members, removing an event \lstinline{e}
+  from an event list \lstinline{el} is as simple as
+  \lstinline{el.remove (e)}.
+Currently, there is no support to remove an action from an event list.
+Because actions can be reused, it would require iterating over
+  all scheduled events,
+  and remove all events with the given action.
+It is not hard to implement at all, we just did not do it\footnote{
+This code fragment has not been tested.}:
+\begin{lstlisting}[basicstyle=\tiny]
+public static void removeAction
+(final SimEventList eventList, final SimAction action)
+{
+  if (eventList != null)
+  {
+    final Iterator it = eventList.iterator;
+    while (it.hasNext ())
+      if (it.next ().getEventAction () == action)
+        it.remove ();
+  }
+}
+\end{lstlisting}
+The code fragment silently assumes
+  the absence of \lstinline{null} events
+  in the event list,
+  which is indeed guaranteed,
+  and works perfectly for \lstinline{null} actions.
+Note the somewhat unexpected method name on \lstinline{SimEvent}
+  to get its action, viz., \lstinline{getEventAction}.
+This name was chosen in order to avoid potential name clashes.
+At the risk of sounding pedantic,
+  the explicit use of the iterator
+  looks old-fashioned,
+  yet allows for
+  the safe removal of elements
+  from a collection in a loop
+  (contrary to a much fancier \lstinline{for} construction).
+
+We conclude with an overview of
+  non-scheduling related utility methods
+  of \lstinline{SimEventList}:
+
+\begin{tabular}{|l|l|}
+  \hline
+  {\bf Method} & {\bf Description} \\
+  \hline
+  \lstinline[basicstyle=\footnotesize]!void print ()! & Prints the event list to \lstinline!System.out!. \\
+  \lstinline[basicstyle=\footnotesize]!void print (PrintStream)! & Prints the event list to the stream. \\
+  \hline
+\end{tabular}
+
+\section{Simultaneous Events}
+\label{sec:guided:simultaneous-events}
+
+So far, all events scheduled in our examples had a unique schedule time.
+But what if two events have identical schedule times?
+The short answer is: The \lstinline|DefaultSimEventList| will
+process them {\em in random order}.
+Why not respect "insertion order"?
+Well, the answers to this seemingly innocent question
+are quite involved, and are given in
+Section \ref{sec:events-eventlists-actions:simultaneous-events}.
+
+By slightly modifying our first example in Listing \ref{simExample1_main},
+we can easily force the occurence of simultaneous events.
+In Listing \ref{simExample1_simul_main},
+apart from creating and scheduling fewer jobs,
+we have reduced the required service time to $1.0$,
+and it is trivial to see that for this particular
+schedule, the departure of job $1$ coincides
+with the arrival of job $2$,
+and similarly for jobs $2$ and $3$.
+In the output shown in Listing \ref{simExample1_simul_out},
+we indeed see that $t=2$,
+job $2$ arrives {\em before\/}
+the departure of job $1$,
+however,
+at $t=3$,
+job $3$ arrives {\em after\/}
+the departure of job $2$.
+At both instants in time,
+the relative order of the event is,
+as mentioned earlied,
+completely coincidental.
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={An example simulation program with simultaneous events.},
+	label=simExample1_simul_main,
+	basicstyle=\tiny]
+	
+	final SimEventList el = new DefaultSimEventList ();
+	final int bufferSize = 2;
+	final FCFS_B queue = new FCFS_B (el, bufferSize);
+	final SimQueueListener listener = new StdOutSimQueueListener ();
+	queue.registerSimEntityListener (listener);
+	for (int j = 1; j <= 3; j++)
+	{
+	final double jobServiceTime = 1.0;
+	final double jobArrivalTime = (double) j;
+	final String jobName = Integer.toString (j);
+	final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+	SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+	}
+	el.run ();
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={Example output of Listing \ref{simExample1_simul_main}.},
+	label=simExample1_simul_out,
+	basicstyle=\tiny]
+	
+	StdOutSimQueueListener t=1.0, entity=FCFS_B[2]: UPDATE.
+	StdOutSimQueueListener t=1.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> ARRIVAL [Arr[1]@FCFS_B[2]]
+	=> START [Start[1]@FCFS_B[2]]
+	=> STA_FALSE [StartArmed[false]@FCFS_B[2]]
+	StdOutSimQueueListener t=1.0, queue=FCFS_B[2]: ARRIVAL of job 1.
+	StdOutSimQueueListener t=1.0, queue=FCFS_B[2]: START of job 1.
+	StdOutSimQueueListener t=1.0, queue=FCFS_B[2]: START_ARMED -> false.
+	StdOutSimQueueListener t=2.0, entity=FCFS_B[2]: UPDATE.
+	StdOutSimQueueListener t=2.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> ARRIVAL [Arr[2]@FCFS_B[2]]
+	StdOutSimQueueListener t=2.0, queue=FCFS_B[2]: ARRIVAL of job 2.
+	StdOutSimQueueListener t=2.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> DEPARTURE [Dep[1]@FCFS_B[2]]
+	=> START [Start[2]@FCFS_B[2]]
+	StdOutSimQueueListener t=2.0, queue=FCFS_B[2]: DEPARTURE of job 1.
+	StdOutSimQueueListener t=2.0, queue=FCFS_B[2]: START of job 2.
+	StdOutSimQueueListener t=3.0, entity=FCFS_B[2]: UPDATE.
+	StdOutSimQueueListener t=3.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> DEPARTURE [Dep[2]@FCFS_B[2]]
+	=> STA_TRUE [StartArmed[true]@FCFS_B[2]]
+	StdOutSimQueueListener t=3.0, queue=FCFS_B[2]: DEPARTURE of job 2.
+	StdOutSimQueueListener t=3.0, queue=FCFS_B[2]: START_ARMED -> true.
+	StdOutSimQueueListener t=3.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> ARRIVAL [Arr[3]@FCFS_B[2]]
+	=> START [Start[3]@FCFS_B[2]]
+	=> STA_FALSE [StartArmed[false]@FCFS_B[2]]
+	StdOutSimQueueListener t=3.0, queue=FCFS_B[2]: ARRIVAL of job 3.
+	StdOutSimQueueListener t=3.0, queue=FCFS_B[2]: START of job 3.
+	StdOutSimQueueListener t=3.0, queue=FCFS_B[2]: START_ARMED -> false.
+	StdOutSimQueueListener t=4.0, entity=FCFS_B[2]: UPDATE.
+	StdOutSimQueueListener t=4.0, entity=FCFS_B[2]: STATE CHANGED:
+	=> DEPARTURE [Dep[3]@FCFS_B[2]]
+	=> STA_TRUE [StartArmed[true]@FCFS_B[2]]
+	StdOutSimQueueListener t=4.0, queue=FCFS_B[2]: DEPARTURE of job 3.
+	StdOutSimQueueListener t=4.0, queue=FCFS_B[2]: START_ARMED -> true.
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+\section{Infinite Time}
+\label{sec:infinite-time}
+
+In the previous section we showed that
+events can be scheduled simultaneously.
+Another noteworthy feature of a \lstinline|SimEventList|
+is that you can schedule events
+at $t=-\infty$ and at $t=+\infty$\footnote{
+	In honor of Georg Cantor.},
+corresponding to the \lstinline|Java|'s
+\lstinline|Double.NEGATIVE_INFINITY| and
+\lstinline|Double.POSITIVE_INFINITY|,
+respectively.
+There are, however, some caveats:
+\begin{itemize}
+	\item All events scheduled at $t=-\infty$ ($t=+\infty$)
+	are treated as simultaneous events.
+	\item Even though most \lstinline|SimQueue|
+	implementations have documented support
+	for events at infinity,
+	they often behave differently.
+	For instance, if a job requires
+	a finite amount of service,
+	it will most likely depart immediately
+	(informally: "$x + \infty = \infty$ for real $x$").
+\end{itemize}
+In short, caution is advised when scheduling events at infinity.
+
+In our next example shown in Listing \ref{simExample1_infty_main},
+with corresponding output in Listing \ref{simExample1_infty_out},
+we show how to schedule events at $-\infty$.
+We increase to buffer size of the \lstinline|FCFS_B| queue to four
+because we do not want to run into job drops in this example.
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={An example simulation program with events at $t=-\infty$ and $t=\infty$.},
+	label=simExample1_infty_main,
+	basicstyle=\tiny]
+	
+	final SimEventList el = new DefaultSimEventList ();
+	final int bufferSize = 4;
+	final FCFS_B queue = new FCFS_B (el, bufferSize);
+	final SimQueueListener listener = new StdOutSimQueueListener ();
+	queue.registerSimEntityListener (listener);
+	for (int j = 1; j <= 2; j++)
+	{
+	final double jobServiceTime = Double.POSITIVE_INFINITY;
+	final double jobArrivalTime = Double.NEGATIVE_INFINITY;
+	final String jobName = Integer.toString (j);
+	final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+	SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+	}
+	final SimJob job3 = new DefaultSimJob (null, "3", Double.POSITIVE_INFINITY);
+	SimJQEventScheduler.scheduleJobArrival (job3, queue, 0.0);
+	final SimJob job4 = new DefaultSimJob (null, "4", Double.POSITIVE_INFINITY);
+	SimJQEventScheduler.scheduleJobArrival (job4, queue, Double.POSITIVE_INFINITY);
+	el.run ();
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+In the example, we schedule two jobs, "1" and "2" at $t=-\infty$.
+This is only allowed because the \lstinline|DefaultSimEventList|
+initialized itself at $t=-\infty$
+(you are not allowed to schedule events "in the past"!).
+The jobs have unity required service time,
+but as the output shows, this really is irrelevant:
+Both jobs arrive (in order of scheduling, but that is a mere coincidence!),
+are taken into service, and depart immediately,
+all at the moment ($-\infty$) of arrival,
+because the required service time is finite.
+We also schedule a third job at $t=0$ yet with infinite
+required service time,
+which is allowed for many queue types.
+However, this job never leaves, not even at $t=+\infty$;
+it is {\em sticky\/}.
+The same goes for job $4$,
+also requiring infinite service time,
+yet arriving at $t=+\infty$
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={Example output of Listing \ref{simExample1_infty_main}.},
+	label=simExample1_infty_out,
+	basicstyle=\tiny]
+	
+	StdOutSimQueueListener t=-Infinity, entity=FCFS_B[4]: UPDATE.
+	StdOutSimQueueListener t=-Infinity, entity=FCFS_B[4]: STATE CHANGED:
+	=> ARRIVAL [Arr[1]@FCFS_B[4]]
+	=> START [Start[1]@FCFS_B[4]]
+	=> STA_FALSE [StartArmed[false]@FCFS_B[4]]
+	StdOutSimQueueListener t=-Infinity, queue=FCFS_B[4]: ARRIVAL of job 1.
+	StdOutSimQueueListener t=-Infinity, queue=FCFS_B[4]: START of job 1.
+	StdOutSimQueueListener t=-Infinity, queue=FCFS_B[4]: START_ARMED -> false.
+	StdOutSimQueueListener t=-Infinity, entity=FCFS_B[4]: UPDATE.
+	StdOutSimQueueListener t=-Infinity, entity=FCFS_B[4]: STATE CHANGED:
+	=> ARRIVAL [Arr[2]@FCFS_B[4]]
+	StdOutSimQueueListener t=-Infinity, queue=FCFS_B[4]: ARRIVAL of job 2.
+	StdOutSimQueueListener t=0.0, entity=FCFS_B[4]: UPDATE.
+	StdOutSimQueueListener t=0.0, entity=FCFS_B[4]: STATE CHANGED:
+	=> ARRIVAL [Arr[3]@FCFS_B[4]]
+	StdOutSimQueueListener t=0.0, queue=FCFS_B[4]: ARRIVAL of job 3.
+	StdOutSimQueueListener t=Infinity, entity=FCFS_B[4]: UPDATE.
+	StdOutSimQueueListener t=Infinity, entity=FCFS_B[4]: STATE CHANGED:
+	=> ARRIVAL [Arr[4]@FCFS_B[4]]
+	StdOutSimQueueListener t=Infinity, queue=FCFS_B[4]: ARRIVAL of job 4.
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+This is all documented behavior of \lstinline|FCFS_B|:
+Irrespective of the arrival time,
+visiting jobs with infinite required service time
+never depart.
+Of course, it's just a choice, and other choices could have been made,
+like, in this particular case,
+letting job "3" depart at $t=\infty$.
+But what if then job "3" {\em arrives\/} at $t=-\infty$?
+So, even though most queueing systems
+will support "operation at infinity",
+be advised that their behavior
+can be totally unexpected,
+and consult the queue's documentation on the topic well.
+
+\section{When Does A Simulation End?}
+\label{sec:guided:simulation-end}
+
+In the previous section,
+it became obvious that
+the event list will happily process
+all events on the event list until it is empty.
+From the perspective of \lstinline|jqueues|,
+this is perfectly reasonable:
+it just processes all events on the list.
+However, in practical situations,
+one often needs more control over the end
+simulation.
+First,
+having processed all events often leaves the queues
+in an empty state,
+which may not be a {\em representable\/} state at all.
+Hence, during statistics gathering, one often
+does not want to wait for the completion of event
+processing.
+(This is comparable to leaving out the "transient"
+section starting at the start of a simulation,
+in order to achieve higher accuracy with statistics.)
+Second, one may want to end a simulation because
+enough accuracy has been reached.
+
+In order to at least partially support these requirements,
+\lstinline|SimEventList| has an alternative method
+\lstinline|runUntil| that does exactly what you would expect:
+It processes the events on the event list
+upto a given time,
+and then returns.
+The neat thing is that you can later decide,
+perhaps after scheduling some extra events
+({\em in the future!\/}),
+to resume the simulation,
+either with \lstinline|run|
+or \lstinline|runUntil|.
+Its arguments are the end time (a \lstinline|double|)
+and two \lstinline|boolean|s.
+The first \lstinline|boolean| argument,
+\lstinline|inclusive|,
+controls whether or not to include
+the end time,
+in other words,
+whether to run {\em up to\/}
+or {\em up to and including\/}
+the end time.
+The second \lstinline|boolean| argument,
+\lstinline|setTimeToEndTime|,
+controls whether or not to set the
+time to the end time
+{\em if no event is scheduled at the end time}.
+In Release 5,
+\lstinline|setTimeToEndTime| only has effect
+if
+\lstinline|includeEndTime == true|,
+but this may change in future releases.
+
+For full control over your simulation,
+\lstinline|SimEventList| offers
+the \lstinline|runSingleStep|
+method, processing
+exactly one event
+(the one at the head of the list)
+before returning.
+
+We show the use of these methods in Listings
+\ref{simExample1_run_main} and \ref{simExample1_run_out},
+this time using a plain \lstinline|FCFS| queue.
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={Example showing different methods for running the event list.},
+	label=simExample1_run_main,
+	basicstyle=\tiny]
+	
+	final SimEventList el = new DefaultSimEventList ();
+	final FCFS queue = new FCFS (el);
+	queue.registerStdOutSimEntityListener ();
+	for (int j = 0; j < 10; j++)
+	{
+	final double jobServiceTime = 100.0; // Double.POSITIVE_INFINITY;
+	final double jobArrivalTime = (double) j;
+	final String jobName = Integer.toString (j);
+	final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+	SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+	}
+	// Run the event list until t=3.0 (inclusive; set time to given time).
+	el.runUntil (3.0, true, true);
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	// Run the event list until t=3.5 (inclusive; set time to last event processed).
+	el.runUntil (3.5, true, false);
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	// Run the event list until t=3.7 (inclusive; set time to given time).
+	el.runUntil (3.7, true, true);
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	// Run the event list until t=5.0 (exclusive; set time to last event processed).
+	el.runUntil (5.0, false, false);
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	// Run the event list until t=7.0 (exclusive; set time to given time => DOES NOT WORK).
+	el.runUntil (7.0, false, true);
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	// Process remaining events, one at a time.
+	while (! el.isEmpty ())
+	{
+	el.runSingleStep ();
+	System.out.println ("Time on event list: " + el.getTime () + ".");
+	}
+	System.out.println ("Finished!");
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={The output of Listing \ref{simExample1_run_main}.},
+	label=simExample1_run_out,
+	basicstyle=\tiny]
+	
+	StdOutSimEntityListener t=0.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=0.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[0]@FCFS]
+	=> START [Start[0]@FCFS]
+	=> STA_FALSE [StartArmed[false]@FCFS]
+	StdOutSimEntityListener t=1.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=1.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[1]@FCFS]
+	StdOutSimEntityListener t=2.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=2.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[2]@FCFS]
+	StdOutSimEntityListener t=3.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=3.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[3]@FCFS]
+	Time on event list: 3.0.
+	Time on event list: 3.0.
+	Time on event list: 3.7.
+	StdOutSimEntityListener t=4.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=4.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[4]@FCFS]
+	Time on event list: 4.0.
+	StdOutSimEntityListener t=5.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=5.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[5]@FCFS]
+	StdOutSimEntityListener t=6.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=6.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[6]@FCFS]
+	Time on event list: 6.0.
+	StdOutSimEntityListener t=7.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=7.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[7]@FCFS]
+	Time on event list: 7.0.
+	StdOutSimEntityListener t=8.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=8.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[8]@FCFS]
+	Time on event list: 8.0.
+	StdOutSimEntityListener t=9.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=9.0, entity=FCFS: STATE CHANGED:
+	=> ARRIVAL [Arr[9]@FCFS]
+	Time on event list: 9.0.
+	StdOutSimEntityListener t=100.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=100.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[0]@FCFS]
+	=> START [Start[1]@FCFS]
+	Time on event list: 100.0.
+	StdOutSimEntityListener t=200.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=200.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[1]@FCFS]
+	=> START [Start[2]@FCFS]
+	Time on event list: 200.0.
+	StdOutSimEntityListener t=300.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=300.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[2]@FCFS]
+	=> START [Start[3]@FCFS]
+	Time on event list: 300.0.
+	StdOutSimEntityListener t=400.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=400.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[3]@FCFS]
+	=> START [Start[4]@FCFS]
+	Time on event list: 400.0.
+	StdOutSimEntityListener t=500.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=500.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[4]@FCFS]
+	=> START [Start[5]@FCFS]
+	Time on event list: 500.0.
+	StdOutSimEntityListener t=600.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=600.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[5]@FCFS]
+	=> START [Start[6]@FCFS]
+	Time on event list: 600.0.
+	StdOutSimEntityListener t=700.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=700.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[6]@FCFS]
+	=> START [Start[7]@FCFS]
+	Time on event list: 700.0.
+	StdOutSimEntityListener t=800.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=800.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[7]@FCFS]
+	=> START [Start[8]@FCFS]
+	Time on event list: 800.0.
+	StdOutSimEntityListener t=900.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=900.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[8]@FCFS]
+	=> START [Start[9]@FCFS]
+	Time on event list: 900.0.
+	StdOutSimEntityListener t=1000.0, entity=FCFS: UPDATE.
+	StdOutSimEntityListener t=1000.0, entity=FCFS: STATE CHANGED:
+	=> DEPARTURE [Dep[9]@FCFS]
+	=> STA_TRUE [StartArmed[true]@FCFS]
+	Time on event list: 1000.0.
+	Finished!
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+\section{Resetting the Event List}
+
+Although you can directly invoke \lstinline|resetEntity ()| on an entity
+(a \lstinline|SimEntity|),
+its actual intention is to be invoked from an {\em event-list reset\/};
+all entities attached to an event list are required
+to invoke their \lstinline|RESET| operation upon an event-list reset.
+The method \lstinline|SimEventList.reset (double time)| performs
+the reset; the argument is the new time on the event list
+and on all attached entities.
+(Note that there is also a variant \lstinline|SimEventList.reset ()|
+without argument, which sets the new time to the {\em default\/} time on the
+event list. For more details, see Chapter \ref{chap:events-eventlists-actions}.)
+{\em You cannot invoke an event-list reset from within the context of an event.}
+In other words, do not schedule it;
+a \lstinline|SimEventList| does not allow a reset
+while it is "being run".
+
+In our next example in Listing \ref{simExample2_main},
+we switch queues, and use a (egalitarian)
+processor-sharing (\lstinline|PS|) queue.
+A \lstinline|PS| queue shares its capacity equally among the jobs present,
+so if two jobs are present, each of them is served
+"at half rate".
+This queue type is thus capable of serving multiple jobs simultaneously.
+More details on \lstinline|PS|
+are provided in Section \ref{sec:PS}.
+We reuse the \lstinline|JobSojournTimeListener|,
+renaming it to \lstinline|JobSojournTimeListenerWithReset|,
+and add a proper \lstinline|RESET| handler,
+because unlike queues,
+listeners must take care of properly resetting themselves.
+It is shown in Listing \ref{simExample2_JobSojournTimeListenerWithReset}.
+Apart from the new method \lstinline|notifyResetEntity|,
+it is an exact copy of \lstinline|JobSojournTimeListener|.
+Also note that we invoke the super method in \lstinline|notifyResetEntity|;
+although not needed in this case, it is a good habit
+to invoke the super method, especially in reset-related methods.
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={The \texttt{JobSojournTimeListenerWithReset} class,
+	showing how to reset listeners.},
+	label=simExample2_JobSojournTimeListenerWithReset,
+	basicstyle=\tiny]
+	
+	public class JobSojournTimeListenerWithReset
+	extends DefaultSimQueueListener
+	{
+	
+	private final Map<SimJob, Double> jobArrTimes = new HashMap<> ();
+	
+	private int jobsPassed = 0;
+	private double cumJobSojournTime = 0;
+	
+	@Override
+	public void notifyResetEntity (SimEntity entity)
+	{
+	super.notifyResetEntity (entity);
+	this.jobArrTimes.clear ();
+	this.jobsPassed = 0;
+	this.cumJobSojournTime = 0;
+	}
+	
+	@Override
+	public void notifyArrival (double time, SimJob job, SimQueue queue)
+	{
+	if (this.jobArrTimes.containsKey (job))
+	throw new IllegalStateException ();
+	this.jobArrTimes.put (job, time);
+	}
+	
+	@Override
+	public void notifyDeparture (double time, SimJob job, SimQueue queue)
+	{
+	if (! this.jobArrTimes.containsKey (job))
+	throw new IllegalStateException ();
+	final double jobSojournTime = time - this.jobArrTimes.get (job);
+	if (jobSojournTime < 0)
+	throw new IllegalStateException ();
+	this.jobArrTimes.remove (job);
+	this.jobsPassed++;
+	this.cumJobSojournTime += jobSojournTime;
+	}
+	
+	@Override
+	public void notifyDrop (double time, SimJob job, SimQueue queue)
+	{
+	notifyDeparture (time, job, queue);
+	}
+	
+	public double getAvgSojournTime ()
+	{
+	if (this.jobsPassed == 0)
+	return Double.NaN;
+	return this.cumJobSojournTime / this.jobsPassed;
+	}
+	
+	}
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={Example showing resetting the event list.},
+	label=simExample2_main,
+	basicstyle=\tiny]
+	
+	final SimEventList el = new DefaultSimEventList ();
+	final PS queue = new PS (el);
+	final JobSojournTimeListenerWithReset listener = new JobSojournTimeListenerWithReset ();
+	queue.registerSimEntityListener (listener);
+	System.out.println ("BEFORE RESET");
+	System.out.println ("  Time on event list is " + el.getTime () + ".");
+	System.out.println ("  Time on queue is " + queue.getLastUpdateTime () + ".");
+	for (int resetTime = -3; resetTime <= 0; resetTime++)
+	{
+	el.reset (resetTime);
+	for (int j = 1; j <= 10; j++)
+	{
+	final double jobServiceTime = (double) 2.2 * j;
+	final double jobArrivalTime = resetTime + (double) (j - 1);
+	final String jobName = Integer.toString (j);
+	final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+	SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+	}
+	el.run ();
+	System.out.println ("AFTER PASS " + (resetTime + 4) + ".");
+	System.out.println ("  Time on event list is " + el.getTime () + ".");
+	System.out.println ("  Time on queue is " + queue.getLastUpdateTime () + ".");
+	System.out.println ("  Average job sojourn time is " + listener.getAvgSojournTime () + ".");
+	}
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+In the outer loop in Listing \ref{simExample2_main},
+we pick up a reset time,
+-3, -2, -1, or 0,
+and reset the event list with that time.
+Subsequently, we schedule ten jobs
+at \lstinline|resetTime|, \lstinline|resetTime|$+1$, $\ldots$,
+with respective required service times
+$2.2$, $4.4$, $\ldots$.
+After running the event list,
+we provide some data and the average job sojourn time on \lstinline|System.out|.
+The corresponding output is shown in Listing \ref{simExample2_out}.
+
+Perhaps somewhat surprisingly,
+we find that the initial times on the event list
+and on the queue is $-\infty$.
+Why? Well, so far we have not given them any clue as to
+what time to initialize themselves with;
+the \lstinline|SimEventList| therefore
+choses the safest value, viz., \lstinline|Double.NEGATIVE_INFINITY|.
+This is the safest value
+because the contract of \lstinline|SimEventList| is that
+events (\lstinline|SimEvent|s) {\em cannot\/}
+be scheduled {\em at a time strictly smaller than the list's current time}.
+The queue, upon construction, gets attached to the event list,
+and simply "inherits" the list's time;
+it does not have a clue either.
+This certainly is not "wrong" in any sense,
+but in many practical cases,
+resetting the event list to a
+known, finite value ($0$ comes to mind$\ldots$)
+is crucial if you want to evaluate
+so-called {\em system statistics}
+like "the average number of jobs at a queue".
+Obviously, measuring such a statistic from $t=-\infty$ onwards,
+if at all possible,
+is not going to yield a value other than zero.
+The advice is therefore to
+{\em always reset the event-list time to a finite value
+	before scheduling events and running the event list.}
+Admittedly, we could have chosen set the time to zero
+on the event list upon a \lstinline|RESET|.
+We could, but we didn't!
+
+Returning to the output,
+it is clear that we ran four simulations
+that were identical, but "shifted in time".
+Because the queue is time-independent,
+we find the same average job-sojourn time
+in all cases;
+a result we will not attempt to analyze this time.
+But,
+apparently,
+we run into rounding errors of the \lstinline|PS| queue
+and/or errors in the representation of
+arbitrary \lstinline|Double| values in \lstinline|Java|.
+This is nothing to worry about at the present time.
+
+One thing we {\em do\/} want to check is the simulation {\em end time\/},
+which is the time of the last job departure from \lstinline|PS|,
+and relate this to the behavior of \lstinline|PS|.
+Can we, in an attempt to partially verify the result found, explain this?
+Well, whatever the \lstinline|resetTime| value,
+it is easy to see that from the moment the first job
+arrives with this particular job-arrival pattern
+and the respective required job service times,
+the queue \lstinline|PS|
+is constantly "providing service" to at least one job.
+In other words, the queue is busy from the moment
+the first jobs arrives until the final departure,
+again, whatever the initial time.
+We could refer to the "work-conserving property" of
+\lstinline|PS|, but a little thought reveals
+that all jobs might just as well have arrived
+{\em at the same time\/} as the first job's arrival,
+{\em if\/} we are merely interested in the departure time of
+the "last" job (ending the so-called "busy cycle").
+From the moment of the first job's arrival,
+\lstinline|PS| simply has to serve
+a certain amount of "work",
+quantified by the summation of the jobs'
+required service time,
+being
+\[
+\sum_{j=1}^{10} 2.2j = 2.2 \sum_{j=1}^{10} j = 2.2 \times 55 = 121.
+\]
+This implies that the end time of the simulation should
+be the scheduled arrival time of the first job
+(which is always \lstinline|resetTime|)
+increased by $121$
+which is,
+ignoring rounding errors,
+indeed confirmed from the output.
+
+\begin{lstfloat}
+	\begin{lstlisting}[
+	caption={The output of Listing \ref{simExample2_main}.},
+	label=simExample2_out,
+	basicstyle=\tiny]
+	
+	BEFORE RESET
+	Time on event list is -Infinity.
+	Time on queue is -Infinity.
+	AFTER PASS 1.
+	Time on event list is 118.00000000000001.
+	Time on queue is 118.00000000000001.
+	Average job sojourn time is 75.7.
+	AFTER PASS 2.
+	Time on event list is 119.00000000000001.
+	Time on queue is 119.00000000000001.
+	Average job sojourn time is 75.7.
+	AFTER PASS 3.
+	Time on event list is 120.00000000000001.
+	Time on queue is 120.00000000000001.
+	Average job sojourn time is 75.7.
+	AFTER PASS 4.
+	Time on event list is 121.00000000000001.
+	Time on queue is 121.00000000000001.
+	Average job sojourn time is 75.7.
+	
+	\end{lstlisting}
+\end{lstfloat}
+
+At this point,
+we leave the subject of resetting event lists and queues,
+and we continue on the interface of a queue,
+formally, the \lstinline|SimQueue| interface.
+We are still missing a few pieces,
+three of them being absolutely essential:
+The notion of {\em waiting\/} and {\em service areas\/}
+of a queue, so-called {\em revocations},
+and {\em multiclass\/} queues and jobs.
+In the next sections,
+we therefore first complete the description of the (mandatory)
+\lstinline|SimQueue| interface,
+culminating into to summary
+in Section \ref{sec:guided:simentity-model}.
+Subsequently,
+we turn our attention to "queues of queues",
+so called {\em composite\/} queues in Section \ref{sec:guided:simqueue-composite},
+and finish this chapter with
+some important other features of \lstinline|jqueues|.
+
+\subsection{Important Methods on a \texttt{SimEventList}}
+
+In Table \ref{tab:guided:eventlist},
+we list the most important methods
+on a \lstinline|SimEventList|.
+
+\begin{table}[h]
+	\label{tab:guided:eventlist}
+	\caption{Important methods on a \texttt{SimEventList}.}
+	\begin{longtabu}{|l|l|}
+		\hline
+		\lstinline|void|   & \lstinline|reset (double)|
+		\\ \hline
+		\lstinline|double| & \lstinline|getTime|
+		\\ \hline
+		\lstinline|void|   & \lstinline|run|
+		\\ \hline
+		\lstinline|void|   & \lstinline|runUntil (double, boolean, boolean)|
+		\\ \hline
+		\lstinline|void|   & \lstinline|runSingleStep|
+		\\ \hline
+	\end{longtabu}
+\end{table}
+
+

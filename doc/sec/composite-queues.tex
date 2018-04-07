@@ -1,0 +1,310 @@
+In the preceding sections,
+  we have already seen some example queueing systems
+  like \lstinline|FCFS_B|, \lstinline|FCFS_c|
+  and \lstinline|PS|,
+  all of which implement the \lstinline|SimQueue|
+  interface.
+There are many more, all of which are described in detail
+  in later chapters of this book.
+One particular "class" of \lstinline|SimQueue| implementations,
+  however, are the so-called {\em composite\/} queues,
+  and they deserve mentioning in this guided tour.
+
+A composite queue is a "queue of queues";
+  its behavior is determined by a set of other
+  (possibly, again composite) queues,
+  the {\em sub-queues\/},
+  passed at construction,
+  and rules for routing jobs through the network
+  of sub-queues.
+These rules depend on the type of composite queue.
+
+Sounds complicated?
+Well, it's really not that bad.
+Let's just dive into it,
+  by considering a classic example of a composite queue:
+  the {\em tandem queue}.
+In a tandem queue,
+  two or more queues
+  are concatenated in the
+  sense that an arriving job
+  must first visit the first sub-queue,
+  and, upon completion at the first,
+  visit the second queue, and so on.
+In Listing \ref{simExample7_tandem_main},
+  we show how to create a \lstinline|Tandem|
+  with two sub-queues,
+  a \lstinline|FCFS|
+  followed by a \lstinline|DLIMIT| queue.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={A tandem of \texttt{FCFS} and \texttt{DLIMIT}.},
+  label=simExample7_tandem_main,
+  basicstyle=\tiny]
+
+    final SimEventList el = new DefaultSimEventList ();
+    final SimQueue fcfs = new FCFS (el);
+    // Uncomment to print events at fcfs.
+    // fcfs.registerSimEntityListener (new StdOutSimEntityListener ());
+    final double rateLimit = 0.25;
+    final SimQueue dlimit = new DLIMIT (el, rateLimit);
+    // Uncomment to print events at dlimit.
+    // dlimit.registerSimEntityListener (new StdOutSimEntityListener ());
+    final Set<SimQueue> subQueues = new LinkedHashSet<> ();
+    subQueues.add (fcfs);
+    subQueues.add (dlimit);
+    final SimQueue tandem = new Tandem (el, subQueues, null);
+    tandem.registerSimEntityListener (new StdOutSimEntityListener ());
+    for (int j = 1; j <= 2; j++)
+    {
+      final double jobServiceTime = 1.5;
+      final double jobArrivalTime = (double) j;
+      final String jobName = Integer.toString (j);
+      final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+      SimJQEventScheduler.scheduleJobArrival (job, tandem, jobArrivalTime);
+    }
+    el.run ();
+
+\end{lstlisting}
+\end{lstfloat}
+
+In the example, we use a \lstinline|LinkedHashSet|,
+  instead of for instance a \lstinline|HashSet|,
+  to pass to the constructor of \lstinline|Tandem|.
+The is essential because iteration over the sub-queues
+  in the set must return the sets in proper order;
+  we want \lstinline|FCFS| first, then \lstinline|DLIMIT|.
+It is recommended to always use \lstinline|LinkedHashSet|
+  for passing the set of sub-queues.
+
+The \lstinline|Tandem| queue has a third argument to
+  its constructor, the so-called {\em delegate-job factory}.
+Because \lstinline|Tandem| is in itself also a \lstinline|SimQueue|,
+  it must follow the rules of that interface,
+  one of them being that a \lstinline|SimJob|
+  {\em can only visit a single \lstinline|SimQueue| at a time}.
+Because the arriving job already visit the tandem queue,
+  it cannot also visit any of the sub-queues at the same time;
+  the tandem queue must therefore create a new \lstinline|SimJob|
+  for every job visit for routing through the sub-queues.
+We call the jobs visiting the composite queue "real jobs",
+  and the jobs created by the composite queue and visiting
+  the sub-queues, "delegate jobs".
+The third argument to the constructor of \lstinline|Tandem|
+  (and the last argument to the constructor of most other
+  concrete composite queues)
+  allows passing a factory for delegate jobs.
+Passing \lstinline|null| implies that the composite queue
+  resorts to a default \lstinline|DelegateSimJobFactory|,
+  which should do just fine in most practical cases.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={The output of Listing \ref{simExample7_tandem_main}.},
+  label=simExample7_tandem_out,
+  basicstyle=\tiny]
+
+StdOutSimEntityListener t=1.0, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+StdOutSimEntityListener t=1.0, entity=Tandem[FCFS,DLIMIT[0.25]]: STATE CHANGED:
+  => ARRIVAL [Arr[1]@Tandem[FCFS,DLIMIT[0.25]]]
+  => START [Start[1]@Tandem[FCFS,DLIMIT[0.25]]]
+StdOutSimEntityListener t=2.0, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+StdOutSimEntityListener t=2.0, entity=Tandem[FCFS,DLIMIT[0.25]]: STATE CHANGED:
+  => ARRIVAL [Arr[2]@Tandem[FCFS,DLIMIT[0.25]]]
+  => START [Start[2]@Tandem[FCFS,DLIMIT[0.25]]]
+StdOutSimEntityListener t=2.5, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+StdOutSimEntityListener t=2.5, entity=Tandem[FCFS,DLIMIT[0.25]]: STATE CHANGED:
+  => DEPARTURE [Dep[1]@Tandem[FCFS,DLIMIT[0.25]]]
+StdOutSimEntityListener t=4.0, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+StdOutSimEntityListener t=6.5, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+StdOutSimEntityListener t=6.5, entity=Tandem[FCFS,DLIMIT[0.25]]: STATE CHANGED:
+  => DEPARTURE [Dep[2]@Tandem[FCFS,DLIMIT[0.25]]]
+StdOutSimEntityListener t=10.5, entity=Tandem[FCFS,DLIMIT[0.25]]: UPDATE.
+
+\end{lstlisting}
+\end{lstfloat}
+
+Before looking at the output of the program in
+  Listing \ref{simExample7_tandem_out},
+  we need to clarify the operation of \lstinline|DLIMIT|,
+  the departure-rate limiter.
+It is described in detail in Section \ref{sec:DLIMIT}.
+\lstinline|DLIMIT| is serverless (it never starts jobs),
+  and lets jobs depart in order of arrival immediately,
+  yet it guarantees a minimum time (the reciproke of the rate limit argument)
+  between its successive departures,
+  letting jobs wait for departure only when needed.
+So, indeed, \lstinline|DLIMIT| does what it promises to do:
+  ensuring that the rate of departures does not exceed the
+  rate-limit argument given.
+
+In the example code in Listing \ref{simExample7_tandem_main},
+  we schedule two job arrivals,
+  one at $t=1$ and the other at $t=2$,
+  each job requiring $1.5$ service time.
+Since our \lstinline|FCFS| queue preceeds the \lstinline|DLIMIT|
+  queue, the arriving jobs (well, in fact, their delegate jobs)
+  immediately arrive at \lstinline|fcfs|.
+It is trivial to check that job "1"
+  departs from \lstinline|fcfs| at $t=2.5$,
+  and job "2" at $t=4.0$.
+Hence,
+  by virtue of \lstinline|Tandem|,
+  at $t=2.5$,
+  job "1" arrives at \lstinline|dlimit|
+  and since that queue has not seen any jobs yet,
+  it lets job "1" depart immediately.
+As a result,
+  job "1" (the "real" job this time)
+  departs from \lstinline|tandem| at $t=2.5$
+The \lstinline|DLIMIT| queue, however,
+  "blocks" departures for $4$ seconds
+  starting at $t=2.5$
+  in order to meet its rate-limit requirement.
+Therefore, job $2$, arriving at \lstinline|dlimit|
+  at $t=4.0$,
+  must wait until $t=2.5+4.0=6.0$ before
+  it can depart from \lstinline|dlimit|,
+  and, as a result, from \lstinline|tandem| as well.
+
+Note that \lstinline|tandem| hides
+  the arrival of job "2" at \lstinline|dlimit|.
+This is typical for composite queues;
+  they hide all events occuring at their sub-queues
+  if they do not change the state of the
+  composite queue itself.
+If you want to follow what happens at both
+  sub-queues,
+  uncomment the marked lines
+  in Listing \ref{simExample7_tandem_main},
+  thereby registering suitable listeners at them.
+
+Our next (and final) example of a composite queue
+  concerns a so-called {\em feedback queue},
+  in which departing jobs are "fed back"
+  as arrivals depending on some {\em feedback condition}.
+Unlike \lstinline|Tandem|,
+  feedback queues only allow a single sub-queue.
+In \lstinline|jqueues| Release 5,
+  two types of tandem queues have been implemented,
+  viz., \lstinline|FB_v| and \lstinline|FB_p|.
+In the former, jobs have to visit the sub-queue a fixed number
+  of times before they leave the composite queue.
+In the latter, jobs, upon departure from the sub-queue,
+  are fed back with a given, fixed, probability.
+The example in Listing \ref{simExample7_feedback_main}
+  with output in Listing \ref{simExample7_feedback_out}
+  demonstrates the use of feedback queues.
+In the example,
+  we create both a \lstinline|FB_v| queue
+  and a \lstinline|FB_p| queue,
+  and schedule a single arrival at each of them.
+The final argument to the constructors of
+  both \lstinline|FB_v| and \lstinline|FB_p|
+  is, again, the optional delegate-job factory.
+The fourth argument to the constructor of \lstinline|FB_p|
+  is an optional (\lstinline|Java|) \lstinline|Random| object
+  in case you want to control the random-number generation
+  (e.g., if you want to set the {\em seed\/} of the generator).
+The example also shows a nice way
+  to directly schedule actions
+  (other than operations on queues and jobs)
+  on a \lstinline|SimEventList|.
+Refer to Chapter \ref{chap:events-eventlists-actions} for further reading
+  if you are curious about this and other constructs on an event list.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Two feedback queues each with a \texttt{FCFS} sub-queue.},
+  label=simExample7_feedback_main,
+  basicstyle=\tiny]
+
+    // Create the event list.
+    final SimEventList el = new DefaultSimEventList ();
+    // FB_v example; scheduled at t=0.
+    final SimQueue fcfs1 = new FCFS (el);
+    final int numVisits = 7;
+    final SimQueue fb_v = new FB_v (el, fcfs1, numVisits, null);
+    fb_v.registerSimEntityListener (new StdOutSimEntityListener ());
+    final SimJob job1 = new DefaultSimJob (null, "1", 1.0);
+    SimJQEventScheduler.scheduleJobArrival (job1, fb_v, 0.0);
+    // Create some vertical space in the output at t=9.
+    el.schedule (9.0, (SimEventAction) (final SimEvent event) ->
+    {
+      System.out.println ();
+    });
+    // FB_v example; scheduled at t=10.
+    final SimQueue fcfs2 = new FCFS (el);
+    final double pFeedback = 0.8;
+    final SimQueue fb_p = new FB_p (el, fcfs2, pFeedback, null, null);
+    fb_p.registerSimEntityListener (new StdOutSimEntityListener ());
+    final SimJob job2 = new DefaultSimJob (null, "2", 1.0);
+    SimJQEventScheduler.scheduleJobArrival (job2, fb_p, 10.0);
+    // Run the event list.
+    el.run ();
+
+\end{lstlisting}
+\end{lstfloat}
+
+Note that you cannot "reuse" sub-queues
+  in multiple composite queues;
+  in the example we cannot create a single
+  \lstinline|FCFS| queue and pass it
+  to both \lstinline|fb_v| and \lstinline|fb_p|.
+In effect,
+  by passing a sub-queue to a composite queue,
+  you pass ownership over the sub-queues to the
+  composite queue.
+Also, obviously, you should not schedule events
+  at sub-queues!
+Most composite-queue implementations
+  are equipped with insane sanity checks
+  for this, and will happily throw
+  an exception at you if they detect
+  unexpected events at one of their sub-queues.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={The output of Listing \ref{simExample7_feedback_main}.},
+  label=simExample7_feedback_out,
+  basicstyle=\tiny]
+
+StdOutSimEntityListener t=0.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=0.0, entity=FB_7[FCFS]: STATE CHANGED:
+  => ARRIVAL [Arr[1]@FB_7[FCFS]]
+  => START [Start[1]@FB_7[FCFS]]
+StdOutSimEntityListener t=1.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=2.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=3.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=4.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=5.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=6.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=7.0, entity=FB_7[FCFS]: UPDATE.
+StdOutSimEntityListener t=7.0, entity=FB_7[FCFS]: STATE CHANGED:
+  => DEPARTURE [Dep[1]@FB_7[FCFS]]
+
+StdOutSimEntityListener t=10.0, entity=FB_80.0%[FCFS]: UPDATE.
+StdOutSimEntityListener t=10.0, entity=FB_80.0%[FCFS]: STATE CHANGED:
+  => ARRIVAL [Arr[2]@FB_80.0%[FCFS]]
+  => START [Start[2]@FB_80.0%[FCFS]]
+StdOutSimEntityListener t=11.0, entity=FB_80.0%[FCFS]: UPDATE.
+StdOutSimEntityListener t=12.0, entity=FB_80.0%[FCFS]: UPDATE.
+StdOutSimEntityListener t=12.0, entity=FB_80.0%[FCFS]: STATE CHANGED:
+  => DEPARTURE [Dep[2]@FB_80.0%[FCFS]]
+
+\end{lstlisting}
+\end{lstfloat}
+
+This concludes our examples on composite queues.
+There is really a lot more to discuss,
+  but for this initial tour,
+  we leave it at this.
+We hope you are curious to the answers
+  to question like
+\begin{itemize}
+  \item When does a real job start?
+  \item How do server-access credits work on a composite queue?
+\end{itemize}
+If so, please consult Chapter \ref{chap:composite}.
+

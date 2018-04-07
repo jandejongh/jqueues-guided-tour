@@ -1,0 +1,450 @@
+In \lstinline|jqueues|, monitoring the progress of a running simulation,
+  or perhaps calculating statistiscs on it,
+  starts with chosing the proper {\em listeners}.
+During the simulation,
+  queues and jobs, from hereon collectively referred to as {\em entities},
+  are obliged to notify registered listeners of (at least) {\em all\/}
+  changes to their states.
+A listener is a \lstinline|Java| object implementing the required methods
+  allowing such notifications from the entity.
+
+Since in most practical simulation studies,
+the ambition level is somewhat higher that showing events on \lstinline|System.out|,
+we will delve somewhat deeper into listeners types and how
+to create, modify and register them.
+
+In the example of Listing \ref{simExample1_main},
+  we used a convenience method \lstinline|registerStdOutSimQueueListener|
+  to register a listener at the \lstinline|FCFS_B| queue
+  that simply writes the details of such notifications
+  to the standard output, \lstinline|Sytem.out| in \lstinline|Java|.
+This is extremely handy for initial testing of a simulation,
+  but in almost all cases,
+  a more sophisticated listener is required;
+  one you have to create yourself.
+Luckily, \lstinline|jqueues| comes with a large collection of
+  listener implementations, each for a specific purpose, that
+  you can modify to suit your needs.
+
+Restricting ourselves for the moment to queue listeners,
+  we can create and register
+  our own listener that reports to \lstinline|System.out|
+  in the code in Listing \ref{simExample1_main}:
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Creating and registering a listener.},
+  label=simExample1_listener1,
+  basicstyle=\tiny]
+
+  final SimQueueListener listener = new StdOutSimQueueListener ();
+  queue.registerSimEntityListener (listener);
+
+\end{lstlisting}
+\end{lstfloat}
+
+Running the program of \ref{simExample1_main} again with
+  this modified code fragment will yield (roughly)
+  the same output, so we have not gained anything so far.
+However,
+  a \lstinline|StdOutSimQueueListener| allows
+  all (notification) methods to be overridden,
+  so we can, for instance,
+  suppress certain notifications in the output like this:
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Suppressing specific notifications in a \texttt{StdOutSimQueueListener}.},
+  label=simExample1_listener1_suppress,
+  basicstyle=\tiny]
+
+    final SimQueueListener listener = new StdOutSimQueueListener ()
+    {
+      
+      @Override
+      public void notifyStateChanged (double time, SimEntity entity, List notifications) {}
+
+      @Override
+      public void notifyUpdate (double time, SimEntity entity) {}
+      
+      @Override
+      public void notifyStartQueueAccessVacation (double time, SimQueue queue) {}
+
+      @Override
+      public void notifyStopQueueAccessVacation (double time, SimQueue queue) {}
+
+      @Override
+      public void notifyNewStartArmed (double time, SimQueue queue, boolean startArmed) {}
+      
+      @Override
+      public void notifyOutOfServerAccessCredits (double time, SimQueue queue) {}
+
+      @Override
+      public void notifyRegainedServerAccessCredits (double time, SimQueue queue) {}
+
+    };
+    queue.registerSimEntityListener (listener);
+
+\end{lstlisting}
+\end{lstfloat}
+
+In Listing \ref{simExample1_listener1_suppress},
+  we modify the \lstinline|StdOutSimQueueListener| by overriding
+  the notification methods for
+  server-access credits
+  and queue-access vacations
+  (which we do have not described yet),
+  for the \lstinline|StartArmed|-related notifications
+  and replacing them with empty methods,
+  effectively suppressing their respective
+  output on \lstinline|System.out|.
+In addition,
+  we suppress the \lstinline|UPDATE| and \lstinline|STATE CHANGED|
+  notifications.
+Our modified listener yields the following output:
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Example output of Listing \ref{simExample1_main} with the modified listener of Listing
+  \ref{simExample1_listener1_suppress}},
+  label=simExample1_listener1_out,
+  basicstyle=\tiny]
+
+ t=0.0, queue=FCFS_B[2]: ARRIVAL of job 0.
+ t=0.0, queue=FCFS_B[2]: START of job 0.
+ t=0.0, queue=FCFS_B[2]: DEPARTURE of job 0.
+ t=1.0, queue=FCFS_B[2]: ARRIVAL of job 1.
+ t=1.0, queue=FCFS_B[2]: START of job 1.
+ t=2.0, queue=FCFS_B[2]: ARRIVAL of job 2.
+ t=3.0, queue=FCFS_B[2]: ARRIVAL of job 3.
+ t=3.2, queue=FCFS_B[2]: DEPARTURE of job 1.
+ t=3.2, queue=FCFS_B[2]: START of job 2.
+ t=4.0, queue=FCFS_B[2]: ARRIVAL of job 4.
+ t=5.0, queue=FCFS_B[2]: ARRIVAL of job 5.
+ t=5.0, queue=FCFS_B[2]: DROP of job 5.
+ t=6.0, queue=FCFS_B[2]: ARRIVAL of job 6.
+ t=6.0, queue=FCFS_B[2]: DROP of job 6.
+ t=7.0, queue=FCFS_B[2]: ARRIVAL of job 7.
+ t=7.0, queue=FCFS_B[2]: DROP of job 7.
+ t=7.6000000000000005, queue=FCFS_B[2]: DEPARTURE of job 2.
+ t=7.6000000000000005, queue=FCFS_B[2]: START of job 3.
+ t=8.0, queue=FCFS_B[2]: ARRIVAL of job 8.
+ t=9.0, queue=FCFS_B[2]: ARRIVAL of job 9.
+ t=9.0, queue=FCFS_B[2]: DROP of job 9.
+ t=14.200000000000001, queue=FCFS_B[2]: DEPARTURE of job 3.
+ t=14.200000000000001, queue=FCFS_B[2]: START of job 4.
+ t=23.0, queue=FCFS_B[2]: DEPARTURE of job 4.
+ t=23.0, queue=FCFS_B[2]: START of job 8.
+ t=40.6, queue=FCFS_B[2]: DEPARTURE of job 8.
+
+\end{lstlisting}
+\end{lstfloat}
+
+If, on the other hand, your {\em only\/} interest is in the
+  fundamental \lstinline|RESET|, \lstinline|UPDATE| and \lstinline|STATE CHANGED|
+  notifications,
+  you can register a \lstinline|StdOutSimEntityListener|
+  as shown in Listing \ref{simExample1_listener2_1}
+  or, simpler but equivalent, Listing \ref{simExample1_listener2_2},
+  and their corresponding output in Listing \ref{simExample1_listener2_out}.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Creating and registering a \texttt{StdOutSimEntityListener}.},
+  label=simExample1_listener2_1,
+  basicstyle=\tiny]
+
+  final SimEntityListener listener = new StdOutSimEntityListener ();
+  queue.registerSimEntityListener (listener);
+
+\end{lstlisting}
+\end{lstfloat}
+
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Using \texttt{registerStdOutSimEntityListener}.},
+  label=simExample1_listener2_2,
+  basicstyle=\tiny]
+
+  queue.registerStdOutSimEntityListener ();
+
+\end{lstlisting}
+\end{lstfloat}
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Example output of Listing \ref{simExample1_main} with the modified listener of Listings
+  \ref{simExample1_listener2_1} or \ref{simExample1_listener2_2}},
+  label=simExample1_listener2_out,
+  basicstyle=\tiny]
+
+StdOutSimEntityListener t=0.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=0.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[0]@FCFS_B[2]]
+  => START [Start[0]@FCFS_B[2]]
+  => DEPARTURE [Dep[0]@FCFS_B[2]]
+StdOutSimEntityListener t=1.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=1.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[1]@FCFS_B[2]]
+  => START [Start[1]@FCFS_B[2]]
+  => STA_FALSE [StartArmed[false]@FCFS_B[2]]
+StdOutSimEntityListener t=2.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=2.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[2]@FCFS_B[2]]
+StdOutSimEntityListener t=3.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=3.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[3]@FCFS_B[2]]
+StdOutSimEntityListener t=3.2, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=3.2, entity=FCFS_B[2]: STATE CHANGED:
+  => DEPARTURE [Dep[1]@FCFS_B[2]]
+  => START [Start[2]@FCFS_B[2]]
+StdOutSimEntityListener t=4.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=4.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[4]@FCFS_B[2]]
+StdOutSimEntityListener t=5.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=5.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[5]@FCFS_B[2]]
+  => DROP [Drop[5]@FCFS_B[2]]
+StdOutSimEntityListener t=6.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=6.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[6]@FCFS_B[2]]
+  => DROP [Drop[6]@FCFS_B[2]]
+StdOutSimEntityListener t=7.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=7.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[7]@FCFS_B[2]]
+  => DROP [Drop[7]@FCFS_B[2]]
+StdOutSimEntityListener t=7.6000000000000005, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=7.6000000000000005, entity=FCFS_B[2]: STATE CHANGED:
+  => DEPARTURE [Dep[2]@FCFS_B[2]]
+  => START [Start[3]@FCFS_B[2]]
+StdOutSimEntityListener t=8.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=8.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[8]@FCFS_B[2]]
+StdOutSimEntityListener t=9.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=9.0, entity=FCFS_B[2]: STATE CHANGED:
+  => ARRIVAL [Arr[9]@FCFS_B[2]]
+  => DROP [Drop[9]@FCFS_B[2]]
+StdOutSimEntityListener t=14.200000000000001, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=14.200000000000001, entity=FCFS_B[2]: STATE CHANGED:
+  => DEPARTURE [Dep[3]@FCFS_B[2]]
+  => START [Start[4]@FCFS_B[2]]
+StdOutSimEntityListener t=23.0, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=23.0, entity=FCFS_B[2]: STATE CHANGED:
+  => DEPARTURE [Dep[4]@FCFS_B[2]]
+  => START [Start[8]@FCFS_B[2]]
+StdOutSimEntityListener t=40.6, entity=FCFS_B[2]: UPDATE.
+StdOutSimEntityListener t=40.6, entity=FCFS_B[2]: STATE CHANGED:
+  => DEPARTURE [Dep[8]@FCFS_B[2]]
+  => STA_TRUE [StartArmed[true]@FCFS_B[2]]
+
+\end{lstlisting}
+\end{lstfloat}
+
+In most practical cases,
+  you will need a listener that does a bit more than reporting to \lstinline|System.out|.
+Of course, you can override the methods in \lstinline|StdOutSimQueueListener|
+  to fit your purposes, but a better way is to use a \lstinline|DefaultSimQueueListener|,
+  or, if you just want to process the fundamental notification (\lstinline|RESET|,
+  \lstinline|UPDATE| and \lstinline|STATE CHANGED|),
+  a \lstinline|DefaultSimEntityListener|.
+Both listener type are concrete,
+  but all required method implementations are empty.
+In our next example,
+  we take a \lstinline|DefaultSimQueueListener|
+  and modify it in order to calculate the average
+  job {\em sojourn\/} time.
+This time,
+  we create a separate \lstinline|class| named \lstinline|JobSojournTimeListener|
+  for the listener,
+  shown in Listing \ref{simExample1_avgSojournTime_class}.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={A (somewhat naive) queue listener that calculates the average job sojourn time.},
+  label=simExample1_avgSojournTime_class,
+  basicstyle=\tiny]
+
+public class JobSojournTimeListener
+extends DefaultSimQueueListener
+{
+
+  private final Map<SimJob, Double> jobArrTimes = new HashMap<> ();
+
+  private int jobsPassed = 0;
+  private double cumJobSojournTime = 0;
+  
+  @Override
+  public void notifyArrival (double time, SimJob job, SimQueue queue)
+  {
+    if (this.jobArrTimes.containsKey (job))
+      throw new IllegalStateException ();
+    this.jobArrTimes.put (job, time);
+  }
+  
+  @Override
+  public void notifyDeparture (double time, SimJob job, SimQueue queue)
+  {
+    if (! this.jobArrTimes.containsKey (job))
+      throw new IllegalStateException ();
+    final double jobSojournTime = time - this.jobArrTimes.get (job);
+    if (jobSojournTime < 0)
+      throw new IllegalStateException ();
+    this.jobArrTimes.remove (job);
+    this.jobsPassed++;
+    this.cumJobSojournTime += jobSojournTime;
+  }
+
+  @Override
+  public void notifyDrop (double time, SimJob job, SimQueue queue)
+  {
+    notifyDeparture (time, job, queue);
+  }
+  
+  public double getAvgSojournTime ()
+  {
+    if (this.jobsPassed == 0)
+      return Double.NaN;
+    return this.cumJobSojournTime / this.jobsPassed;
+  }
+  
+}
+
+\end{lstlisting}
+\end{lstfloat}
+
+In the class, we override the (courtesy) notifications for job arrivals,
+  departures and drops.
+When a job arrives, its arrival time is put into a private \lstinline|Map| (\lstinline|jobArrTimes|)
+  for later reference.
+When a job departs or is dropped,
+  we retrieve its arrival time,
+  calculate its sojourn time,
+  and add the result to the cumulative sum
+  of sojourn times, \lstinline|cumJobSojournTime|.
+In order to later interpret this value,
+  we also have to maintain the number of jobs passed
+  in a private field \lstinline|jobsPassed|.
+At any time,
+  the class provides the average sojourn time (over all jobs {\em passed\/})
+  through its \lstinline|getAvgSojournTime| method.
+The calculation involved is trivial;
+  the method returns \lstinline|Double.NaN| when
+  no jobs have passed.
+
+The use of \lstinline|JobSojournTimeListener| and the corresponding output
+  are shown in Listings \ref{simExample1_avgSojournTime_main}
+  and \ref{simExample1_avgSojournTime_out}, respectively.
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={Our \texttt{FCFS\_B} example
+           with the custom \texttt{JobSojournTimeListener}.},
+  label=simExample1_avgSojournTime_main,
+  basicstyle=\tiny]
+
+    final SimEventList el = new DefaultSimEventList ();
+    final int bufferSize = 2;
+    final FCFS_B queue = new FCFS_B (el, bufferSize);
+    final JobSojournTimeListener listener = new JobSojournTimeListener ();
+    queue.registerSimEntityListener (listener);
+    for (int j = 0; j < 10; j++)
+    {
+      final double jobServiceTime = (double) 2.2 * j;
+      final double jobArrivalTime = (double) j;
+      final String jobName = Integer.toString (j);
+      final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
+      SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
+    }
+    el.run ();
+    System.out.println ("Average job sojourn time is " + listener.getAvgSojournTime () + ".");
+
+\end{lstlisting}
+\end{lstfloat}
+
+\begin{lstfloat}
+\begin{lstlisting}[
+  caption={The output of Listing \ref{simExample1_avgSojournTime_main}.},
+  label=simExample1_avgSojournTime_out,
+  basicstyle=\tiny]
+
+Average job sojourn time is 7.06.
+
+\end{lstlisting}
+\end{lstfloat}
+
+Before going into details on the average sojourn time reported,
+  we want to stress that our implementation of
+  \lstinline|JobSojournTimeListener| is far from complete and even erroneous,
+  although it works correctly in this specific (use) case.
+For instance, it fails to consider the fact that jobs may
+  {\em not\/} leave the queue (in whatever way).
+Such jobs are named {\em sticky\/} jobs,
+  and in a true application we would have to consider them.
+Second,
+  apart from \lstinline|DROP| and \lstinline|DEPARTURE|,
+  there are other means by which a job
+  can depart the queueing system
+  (in particular, {\em revocations\/}).
+%   see Section \ref{sec:guided:revocations}).
+Third,
+  the listener ignores \lstinline|RESET|
+  notifications from the queue;
+  a critical error as we shall see later.
+%  as will become
+%  clear later in Section \ref{sec:guided:reset}.
+We will not further discuss these and other complications here,
+  because our primary intention is to show you
+  the mechanisms for creating and modifying listeners.
+We just want to point out that the design of {\em robust\/}
+  statistical listeners is more complicated that shown here.
+We provide a thorough treatment in Chapter \ref{chap:statistics}.
+
+Returning to the reported average job sojourn time.
+Is it correct?
+Well, in order to verify, we have no choice but to carefully analyze
+  the behavior of the \lstinline|FCFS_B| queue under the given
+  workload of jobs, as given in Table \ref{simExample1_analysis}.
+The table shows for each job its
+  job number (Job),
+  arival time (Arr),
+  required service time (ReQ),
+  jobs waiting upon its arrival (WQA),
+  start time (Start, if applicable),
+  exit time (either due to departure or due to dropping),
+  sojourn time (exit time minus arrival time),
+  and remarks if applicable.
+The final rows
+  show the sum (TOT) and the average (AVG)
+  of the required service times and
+  the sojourn times,
+  thus validating the result.
+
+\begin{table}[h]
+\caption{Analysis of job sojourn times in Listing \ref{simExample1_main}.}
+\label{simExample1_analysis}
+\begin{center}
+\begin{tabular}{|l|l|r|l|r|r|r|l|}
+\hline
+Job & Arr & ReqS & WQA & Start & Exit & Sojourn & Remark \\
+\hline
+\hline
+0 & 0.0 &  0.0 & $\{      \}$ & 0.0  &  0.0 &  0.0 & Exits immediately. \\ \hline
+1 & 1.0 &  2.2 & $\{      \}$ & 1.0  &  3.2 &  2.2 &                    \\ \hline
+2 & 2.0 &  4.4 & $\{      \}$ & 3.2  &  7.6 &  5.6 &                    \\ \hline
+3 & 3.0 &  6.6 & $\{ 2    \}$ & 7.6  & 14.2 & 11.2 &                    \\ \hline
+4 & 4.0 &  8.8 & $\{ 3    \}$ & 14.2 & 23.0 & 19.0 &                    \\ \hline
+5 & 5.0 & 11.0 & $\{ 3, 4 \}$ & -    &  5.0 &  0.0 & Dropped.           \\ \hline
+6 & 6.0 & 13.2 & $\{ 3, 4 \}$ & -    &  6.0 &  0.0 & Dropped.           \\ \hline
+7 & 7.0 & 15.4 & $\{ 3, 4 \}$ & -    &  7.0 &  0.0 & Dropped.           \\ \hline
+8 & 8.0 & 17.6 & $\{ 4    \}$ & 23.0 & 40.6 & 32.6 &                    \\ \hline
+9 & 9.0 & 19.8 & $\{ 4, 8 \}$ & -    &  9.0 &  0.0 & Dropped.           \\ \hline
+\hline
+TOT   & & 99.0 &              &      &      & 70.6 &                    \\ \hline
+\hline
+AVG   & &  9.9 &              &      &      & 7.06 &                    \\ \hline
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
