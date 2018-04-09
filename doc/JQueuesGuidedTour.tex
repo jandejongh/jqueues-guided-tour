@@ -11,6 +11,7 @@
 \usepackage{tabu}
 \usepackage{cite}
 \usepackage{url}
+\usepackage[framemethod=tikz]{mdframed}
 % \usepackage{hyperref}
 
 \title{Discrete-Event Simulation\\
@@ -22,11 +23,11 @@
        \mbox{ } \\
        Guided Tour}
 \author{Jan de Jongh}
-\date{Release 5.2\\
+\date{Release 5.2, 5.3-SNAPSHOT\\
 	  \mbox{ } \\
 	  {\bf DRAFT}\\
 	  \mbox{ }
-	  \\{\bf Print/Release Date 20180407}}
+	  \\{\bf Print/Release Date 20180409}}
 
 \lstset
 {
@@ -46,12 +47,46 @@
 
 \maketitle
 
+% Credits: https://tex.stackexchange.com/questions/147431/how-to-add-page-with-restriction-notice
+% copyright note
+{% begin group
+	\vspace*{90mm}
+	\thispagestyle{empty}
+	% \footnotesize\itshape
+	% \setlength{\parskip}{\baselineskip}
+	\setlength{\parindent}{0pt}
+	\copyright\,2010--2018, by Jan de Jongh, TNO
+	\vspace*{25mm}
+}% end group
+
+% Credits: https://tex.stackexchange.com/questions/117597/inserting-a-creative-commons-licence-into-a-latex-document	
+\definecolor{cccolor}{rgb}{.67,.7,.67}
+\begin{mdframed}[
+  outerlinecolor=black,
+  outerlinewidth=2pt,
+  linecolor=cccolor,
+  middlelinewidth=3pt,
+  roundcorner=10pt]
+This work is licensed under a Creative Commons
+  Attribution-NonCommercial-NoDerivatives
+  4.0 International License.\\
+  \\
+See http://creativecommons.org/licenses/by-nc-nd/4.0/.
+  \\
+\begin{center}
+  \includegraphics[scale=2]{fig/by-nc-nd}
+\end{center}
+\end{mdframed}
+
+% Note: I'd love to dedicate this work to Graham Birtwistle,
+% but not without his consent.	
 % \chapter*{}
 % \begin{center}
 % {\em Dedicated to Graham Birtwistle.} \\
 % \mbox{ } \\
 % {\em In memory of Ole-Johan Dahl and Kristen Nygaard.}
 % \end{center}
+
 
 \chapter*{Preface}
 \label{chap:preface}
@@ -65,13 +100,13 @@
 \label{chap:install}
 \input{sec/install}
 
-\chapter{Hello World: FCFS}
+\chapter{Hello World: \texttt{FCFS}}
 \label{chap:hello-world}
 \input{sec/hello-world}
 
-%\chapter{Events, Actions and the Event List}
-%\label{chap:events-actions-event-list}
-%\input{sec/events-actions-event-list}
+\chapter{Events, Actions and the Event List}
+\label{chap:events-actions-event-list}
+\input{sec/events-actions-event-list}
 
 %\chapter{Entities}
 %\label{chap:entities}
