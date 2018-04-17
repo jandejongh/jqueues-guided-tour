@@ -6,12 +6,19 @@
 \usepackage{listings}
 \usepackage{array}
 \usepackage{geometry}
+\geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+ }
 \usepackage{graphicx}
 \usepackage{longtable}
 \usepackage{tabu}
 \usepackage{cite}
 \usepackage{url}
 \usepackage[framemethod=tikz]{mdframed}
+\usepackage{tablefootnote}
 % \usepackage{hyperref}
 
 \title{Discrete-Event Simulation\\
@@ -27,7 +34,7 @@
 	  \mbox{ } \\
 	  {\bf DRAFT}\\
 	  \mbox{ }
-	  \\{\bf Print/Release Date 20180409}}
+	  \\{\bf Print/Release Date 20180417}}
 
 \lstset
 {
@@ -50,13 +57,13 @@
 % Credits: https://tex.stackexchange.com/questions/147431/how-to-add-page-with-restriction-notice
 % copyright note
 {% begin group
-	\vspace*{90mm}
+	\vspace*{130mm}
 	\thispagestyle{empty}
 	% \footnotesize\itshape
 	% \setlength{\parskip}{\baselineskip}
 	\setlength{\parindent}{0pt}
 	\copyright\,2010--2018, by Jan de Jongh, TNO
-	\vspace*{25mm}
+	\vspace*{40mm}
 }% end group
 
 % Credits: https://tex.stackexchange.com/questions/117597/inserting-a-creative-commons-licence-into-a-latex-document	
@@ -100,7 +107,7 @@ See http://creativecommons.org/licenses/by-nc-nd/4.0/.
 \label{chap:install}
 \input{sec/install}
 
-\chapter{Hello World: \texttt{FCFS}}
+\chapter{Hello World: \texttt{\bf FCFS}}
 \label{chap:hello-world}
 \input{sec/hello-world}
 
@@ -108,9 +115,9 @@ See http://creativecommons.org/licenses/by-nc-nd/4.0/.
 \label{chap:events-actions-event-list}
 \input{sec/events-actions-event-list}
 
-%\chapter{Entities}
-%\label{chap:entities}
-%\input{sec/entities}
+\chapter{Entities}
+\label{chap:entities}
+\input{sec/entities}
 
 %\chapter{Listeners}
 %\label{chap:listeners}

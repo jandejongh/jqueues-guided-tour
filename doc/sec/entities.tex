@@ -1,535 +1,662 @@
-\subsection{Fundamentals}
+In the previous chapter we introduced the
+  core concepts of \lstinline|jsimulation|;
+  in the present chapter we delve into \lstinline|jqueues|,
+  and explain it center of gravity, viz. {\em (simulation) entities}.
+Other fundamental concepts in \lstinline|jqueues|
+  like {\em queues\/} and {\em jobs\/},
+  both of which are actually specific manifestations of entities,
+  are described in subsequent chapters,
+  as well as specific implementations of {\em listeners}.
+  
+Even though this chapter
+  is quite abstract
+  and deliberately kept compact,
+  its contents are crucial for understanding
+  core simulation concepts
+  like {\em queues\/} and {\em jobs\/}
+  in later chapters.
+Once you understand entities properly,
+  we can describe queues and jobs
+  in a highly compact,
+  precise and almost mathematical, form.
+We therefore strongly recommend to take the time
+  to go through this chapter before "jumping into"
+  the admittedly more interesting later
+  chapters on queues on jobs,
+  and to return to this chapter
+  if things are unclear later on.
+  
+\section{Anatomy of a Simulation in \texttt{\bf jqueues}}
 
-Before presenting the details on the \lstinline|SimEntity| interface,
-we take the time to summarize the fundamental concepts in
-\lstinline|jsimulation| and \lstinline|jqueues|:
-\begin{itemize}
-	\item The \lstinline|Java| package named \lstinline|jsimulation|
-	is a library for (single-threaded) discrete-event simulation.
-	\item The \lstinline|Java| package named \lstinline|jqueues|
-	is a library for (single-threaded) discrete-event simulation
-	of queueing systems.
-	The library depends on \lstinline|jsimulation|.
-	\item In order to perform discrete event simulations,
-	an event list is needed, on which events can be scheduled.
-	The event list maintains an ordering of the events it contains
-	in non-decreasing simulation time.
-	Typically, a single instance of an event list is used
-	throughout the entire simulation study.
-	The corresponding (abstract) types
-	for event lists and events are defined in \lstinline|jsimulation|,
-	and named \lstinline|SimEventList| and \lstinline|SimEvent|, respectively.
-	This package also provides a reasonable implementation for
-	a \lstinline|SimEventList| named \lstinline|DefaultSimEventList|.
-	\item On a \lstinline|SimEventList|, all scheduled \lstinline|SimEvent|s are
-	unique; you cannot schedule a \lstinline|SimEvent| more than once
-	on a single \lstinline|SimEventList|.
-	Typically, \lstinline|SimEvent|s are created and scheduled through
-	various utility methods.
-	\item The time at which a \lstinline|SimEvent| is scheduled,
-	is kept on the \lstinline|SimEvent| itself,
-	and available though the \lstinline|SimEvent.getTime| method.
-	Once scheduled, you cannot change the time of a \lstinline|SimEvent|.
-	You can, however, reschedule it at a different time
-	through the \lstinline|SimEventList.reschedule| method.
-	\item It is perfectly legel if multiple \lstinline|SimEvent|s are scheduled
-	at the same time.
-	On a \lstinline|DefaultSimEventList|, they are processed in random order.
-	\item With each \lstinline|SimEvent|, an action is associated that determines
-	what to do when the event is processed by the event list.
-	The generic type in \lstinline|jsimulation| is \lstinline|SimEventAction|.
-	Unlike \lstinline|SimEvent|s, \lstinline|SimAction| need not be unique
-	on the event list, and can be shared among different events.
-	\item Once sufficient events have been scheduled,
-	a simulation experiment starts by running or processing
-	the event list.
-	In \lstinline|jsimulation|,
-	you can run the \lstinline|SimEventList| until it is exhausted
-	of events through the \lstinline|SimEventList.run| method,
-	until it has reached a specific simulation time
-	through the \lstinline|SimEventList.runUntil| method,
-	or on an event-by-event basis through \lstinline|SimEventList.runSingleStep|.
-	\item A \lstinline|SimEventList| keeps a notion of simulation time.
-	It is available through \lstinline|SimEventList.getTime|.
-	While running,
-	this is always the scheduled time of the current event being processed.
-	When not, it is always smaller than or equal to the time
-	on the first scheduled \lstinline|SimEvent|.
-	\item You cannot schedule (at the risk of an \lstinline|Exception|)
-	a \lstinline|SimEvent| with time
-	strictly smaller than the current simulation time
-	on the \lstinline|SimEventList|.
-	\item Event may be scheduled simultaneously,
-	in which case their order of processing is {\em random}.
-	\item Events may be scheduled at $t=-\infty$ and $t=+\infty$.
-	\item The \lstinline|SimEventList.reset| and \lstinline|SimEventList (double)|
-	methods reset the event list,
-	meaning all scheduled \lstinline|SimEvent|s are removed from the list,
-	and the time on the event list is set to its default time (first method)
-	or given time.
-	The typical use case of these methods is running the simulation again
-	(for instance, for variance-reduction purposes).
-	You cannot invoke either method while the event list is being processed,
-	at the risk of an \lstinline|Exception|.
-	\item In simulation of queueing systems,
-	the center of attention is a simulation entity,
-	an object with a state subject to (the actions of) simulation events.
-	\item In \lstinline|jqueues|, simulation entities are represented
-	as \lstinline|SimEntity| objects.
-	In the present release,
-	a \lstinline|SimEntity| is either a \lstinline|SimJob|
-	(job) or \lstinline|SimQueue| (or their abstract joint interface,
-	\lstinline|SimJQ|).
-	However, other types of \lstinline|SimEntity| may be added in a future release.
-	\item A \lstinline|SimEntity| has the obligation to report
-	changes to its state (as a result of event-list processing)
-	to registered listeners,
-	which are of type \lstinline|SimEntityListener|.
-	Listeners to a \lstinline|SimEntity| can be registered and
-	unregistered at any time through the
-	\lstinline|SimEntity.registerSimEntityListener|
-	and \lstinline|SimEntity.unregisterSimEntityListener|
-	methods, respectively.
-	\item In \lstinline|jqueues|, changes to the state
-	of a \lstinline|SimEntity| is always the result
-	of the invocation of one of a set of well-defined
-	operations on the entity.
-	The specific type of \lstinline|SimEntity|
-	determines the operation it supports.
-	The invocation of an operation is
-	almost always performed by a scheduled event.
-	\item An operation can be external or internal.
-	Events for internal events can only be scheduled
-	by the \lstinline|SimEntity| itself.
-	\item Upon reception of {\em any\/} operation invocation,
-	but before doing anything,
-	a \lstinline|SimEntity| fires an \lstinline|UPDATE|
-	notification exposing the {\em a priori\/} state
-	(i.e., the "old" state).
-	\item After completion of an operation invocation,
-	but {\em before\/} handing back control (to the event list),
-	a \lstinline|SimEntity| fires a \lstinline|STATE CHANGED|
-	notification exposing the {\em a posteriori\/} state
-	(i.e., the "new" state).
-	In some cases, no state-change notification is fired when
-	the state did not actually change.
-	\item The external operations on a \lstinline|SimQueue| are
-	\lstinline|Arrive| and \lstinline|Revoke|.
-	\item In \lstinline|jqueues|,
-	a \lstinline|SimJob| starts a visit to a \lstinline|SimQueue|
-	through the \lstinline|Arrive| operation.
-	Listeners are always notified of invocations of \lstinline|Arrive|,
-	even if no state change occurs on the entity.
-	\item While a \lstinline|SimJob| is present (visiting) a \lstinline|SimQueue|,
-	it is either in its waiting or service area.
-	Upon arrival, a \lstinline|SimJob| enters the waiting area.
-	Moving a \lstinline|SimJob| from the waiting to the service area
-	is performed (if at all) through the internal \lstinline|START|
-	operation.
-	Invocations of the \lstinline|Start| operation are always notified to
-	listeners, even if no state change occurs.
-	\item The visit of a \lstinline|SimJob| to a \lstinline|SimQueue|
-	can end in one of following three ways: (1) Through departure
-	(the internal \lstinline|Depart| operation), (2) through dropping
-	(the internal \lstinline|Drop| operation), or (3) through revocation
-	(the external \lstinline|Revoke| operation or the internal \lstinline|AutoRevoke| operation).
-	Whatever way the \lstinline|SimJob| leaves, it can be from the waiting
-	and service area.
-	Invocations of the \lstinline|Drop| operation are always notified to
-	listeners, even if no state change occurs.
-	\item A job that is present on a queue, but never leaves during a simulation run
-	is named a sticky job.
-\end{itemize}
+Our starting point for a detailed description
+  of the \lstinline|jqueues| package,
+  is its vision on a {\em simulation run\/};
+  a concept already described for \lstinline|jsimulation|
+  in Chapter \ref{chap:events-actions-event-list}.
+We recall that in a discrete-event simulation,
+  the {\em events\/} on an {\em event list\/}
+  are processed one at a time
+  in order of non-decreasing {\em event time}.
+The processing of an event
+  involves the invocation of the event's {\em action},
+  which in turn may result in the scheduling of new
+  events (in the future) on the event list.
+A simulation ends when there are no more
+  events scheduled on the event list\footnote{
+  Or until some other criterion is met;
+  see Chapter \ref{chap:events-actions-event-list}.}.
 
-\section{The \texttt{UPDATE} and \texttt{STATE CHANGED} Notifications}
+In \lstinline|jqueues|,
+  we (have to) narrow this view.
+In particular,
+  we assume that in a discrete-event simulation (run),
+  we are primarily interested in
+  a specific subset of objects affected by events.
+In \lstinline|jqueues|,
+  these objects are called {\em simulation entities}
+  and are characterized
+  by their implementation of the \lstinline|SimEntity| interface.
+There may be many more \lstinline|Java| objects
+  that are affected by the scheduled events,
+  for instance,
+  for logging, reporting or presentation purposes,
+  or for statistical analysis,
+  or for workload generation,
+  but our
+  {\em main interest from the problem domain is in the (modeled) entities}.
 
-As you may have spotted,
-events are actually reported twice,
-once as part of a \lstinline|STATE CHANGED| notification,
-followed by a separate notification specific to the event type
-(\lstinline-ARRIVAL-, \lstinline-DEPARTURE-, etc.).
-As a matter of fact, these separate notifications are merely a courtesy
-of the queue as it is only required to issue
-\lstinline|UPDATE|, \lstinline|STATE CHANGED| and \lstinline|RESET| notifications.
+The crux is that a \lstinline|SimEntity|
+  has a well-defined {\em simulation state\/}
+  that can change
+  {\em only\/} as a result of processing events.
+However, these events cannot arbitrarily manipulate
+  the state a \lstinline|SimEntity|;
+  they can only do so by invoking
+  {\em entity operations}.
+An operation is a well-defined method, or set of methods,
+  on an entity that (potentially) changes its state.
+In \lstinline|jqueues|,
+  the type use for operations is \lstinline|SimOperation|,
+  but you will hardly need this in practical simulations.
+Each entity type comes with its specific
+  {\em minimal\/} set of admissible operations.
+For instance, every queue and job,
+  both of which are entities,
+  must support the \lstinline|Arrival| operation.
 
-In order to understand this,
-we must realize that in {\em any\/} discrete-event simulation,
-the entities (like queues) involved possess an individual {\em state\/}
-that can only change at discrete moments in time (the {\em epochs\/}),
-and as a result of an {\em operation\/} on the entity at that time.
-This is explained grapically in Figure \ref{fig:SimpleSimulationOverview}.
+An operation on a \lstinline|SimEntity| is either
+  {\em external\/} or {\em internal}.
+The former can be scheduled by the end-user,
+  whereas the latter can only be scheduled by the entity itself.
+For instance,
+  for queues, \lstinline|Arrival| is an external operation,
+  whereas \lstinline|Departure| is internal.
+
+All entities support the notion of a {\em reset state},
+  which is the state\footnote{In the sequel,
+  whenever we refer to "the state" of an entity,
+  we always mean its "simulation state".}
+  they attain upon creation,
+  or after a so-called {\em entity reset}.
+The reset state is well defined for each entity type;
+  for queues, for instance,
+  the reset state requirements mandate that the queue is empty.
+Performing a reset on an entity is a feature typically needed
+  when running a simulation multiple times with the same set of queues
+  (or even jobs),
+  for instance because a certain accuracy has to be achieved
+  (often with {\em variance-reduction\/} techniques like {\em replication\/}).
+Because the semantics of an entity reset are rather complicated,
+  and many simulation studies do not need it
+  (because they simply perform a "single-run"),
+  its detailed discussion is deferred.
+Nonetheless,
+  it is important to realize that every entity
+  supports a well-defined reset operation.
+
+Finally, simulation entities are required to
+  maintain a set of {\em listeners\/}
+  interested in state changes of the entity.
+So, whenever the state changes of an entity,
+  all of its registered listeners
+  are informed.
 
 \begin{figure}[h]
-	\label{fig:SimpleSimulationOverview}
-	\caption{The relations between simulation time, epochs,
-		the event list, scheduled events, and actions,
-		as well their impact on notifications from
-		and operations on
-		(the state of) an entity.}
-	\includegraphics[width=\textwidth]{fig/SimpleSimulationOverview}
+    \label{fig:AnatomyOfASimulationInJQueues}
+    \caption{The anatomy of a simulation in \texttt{JQueues}.}
+    \includegraphics[width=\textwidth]{fig/AnatomyOfASimulationInJQueues}
 \end{figure}
 
-In the top of the figure,
-we show the simulation time and some of the epochs
-from the example.
-During a simulation run, the simulation time increases monotonically
-as a function of "real time".
-What this says is that the simulation time does not
-"strictly decrease" in real time,
-but at the same time,
-that's pretty much the only requirement
-on the relation between real time
-and simulation time.
-For instance,
-processing the epochs between $t=0$ and $t=9$
-may take several minutes in real time,
-whereas epochs between $t=9$ and $t=100$
-could be done in a mere second\footnote{
-	This is not to say that is is impossible or even hard
-	to let simulation time progress
-	(roughly) at the same rate as real time,
-	or at some scaled version of it.
-	However, in discrete-event simulation,
-	the relationship between real time and simulation time
-	is generally considered unimportant.}
+In Figure \ref{fig:AnatomyOfASimulationInJQueues},
+  we attempt to explain the \lstinline|jqueues|
+  concepts and features described thus far.
+In the top two rows we show the
+  by now hopefully familiar concepts
+  of {\em epochs},
+  {\em simulation time},
+  {\em events},
+  and {\em actions}.
+The event list contains two events,
+  one scheduled at simulation time $t=1$
+  and one at $t=4$.
+The former's action is to invoke operation
+  \lstinline|O1| on entity \lstinline|E1|,
+  whereas the latter invokes \lstinline|O2|
+  on \lstinline|E2|.
+After the effect of invocation of \lstinline|E1.O1|,
+  while the event list is being processed,
+  entity \lstinline|E1| notifies
+  its registered listeners
+  \lstinline|L1| and \lstinline|L2|
+  through a \lstinline|STATE_CHANGED| notification.
+Similarly,
+  \lstinline|E2| notifies \lstinline|L3|
+  after completing its \lstinline|O2| invocation
+  from the event list.
+  
+\section{The \texttt{\bf SimEntity} Model in More Detail}
 
-Below the simulation-time line,
-we show the event list and some of the scheduled events
-from the example.
-The apparent equal distance between the events
-is actually on pupose.
-The event list is really not concerned with the
-simulation-time differences between adjacent events.
-No matter how large the time interval between an
-event and its predecessor,
-in between (basicaly) nothing happened:
-There were not events,
-and hence,
-no state changes.
-Going back to the figure,
-we scheduled the arrival events ourselves
-before processing the event list,
-but we also see two "departure events"
-we did not schedule.
-In fact, these events were scheduled by the
-queue, in response to previous events.
-For instance, when job $1$ arrives at $t=1$ (simulation time),
-it is taken into service immediately,
-and after requesting the service time from job $1$ ($2.2$),
-it schedules a {\em departure event\/} at $t=3.2$,
-shown in a somewhat different color because we
-did not schedule this ourselves (we are not even allowed to do so).
-This shows an important aspect of the event list while processing it:
-in general, the actions taken while processing the event list have
-full freedom to schedule new events,
-as long as they are not in the past.
-This, admittedly, is not clear from the figure.
-What is essential to remember is that a scheduled event
-await its turn while the event list is being processed,
-and the event list invokes the event's action
-when it has processed all preceding events.
+In the present section,
+  we refine the \lstinline|SimEntity| model
+  introduced in the previous section.
+In Figure \ref{fig:EntityModel},
+  we illustrate the detailed model of a \lstinline|SimEntity|.
+We will use this figure in our explanations
+  of the more advanced concepts in the next sections.
+  
+\begin{figure}[h]
+    \label{fig:EntityModel}
+    \caption{The detailed model of a \texttt{SimEntity}.}
+    \includegraphics[width=\textwidth]{fig/EntityModel}
+\end{figure}
 
-Assuming the event's action involves the queue in question,
-we now turn our attention to the bottom part of the figure,
-showing our queue from the example, the \lstinline|FCFS_B| queue.
-We assume the arrival event at $t=1$ is processed by the event list,
-and the net effect of this (i.e., the action of the event)
-is the invokation of the arrival operation on the queue
-(with the job $1$ as its argument).
-As a result of this operation,
-the state of the queue will transform,
-and registered listeners to the queue will be informed
-of the new state upon completion of the operation.
-This, effectively, is the \lstinline|STATE CHANGED| notification.
-In the figure this is shown with the right-pointing arrow at the bottom
-from \lstinline|OLD STATE| to \lstinline|NEW STATE|,
-and the \lstinline|STATE CHANGED| notification below that.
+\subsection{Top-Level and Chained Operation Invocations}
 
-However, before doing anything,
-the arrival operation invokes
-the so-called \lstinline|UPDATE| operation,
-which exposes the {\em old\/} state
-to listeners and internally registered "hooks",
-and, subsequently, increases the most essential state
-property, the {\em last update time}.
-By now, you should realize that
-as the event list progresses in simulation time,
-queues (or better, {\em entities\/})
-that are not affected by the events processed
-will not be bothered at all.
-Yet a queue needs to assure that time-stamped operations
-never lie in the past,
-so they need to maintain a notion of simulation time themselves.
-The importance of the \lstinline|UPDATE| notification
-lies in {\em statistics gathering},
-in which it is essential to know exactly
-during which (non-trivial) intervals
-the state of a queue did {\em not\/} change,
-and the lenght of such intervals.
-As long as you are not involved in statistics-gathering,
-you can safely ignore these notifications,
-otherwise,
-you can find more details in Section \ref{chap:statistics}.
+When a \lstinline|SimEvent|
+  (or, more precisely, its \lstinline|SimEventAction|)
+  calls a method on an entity corresponding to one of its operations
+  this is called a {\em top-level operation invocation}.
+It is perfectly legal for an entity implementation
+  to invoke {\em other\/} operations on it
+  while performing an operation,
+  i.e.,
+  still within the context of the event that triggered
+  the top-level operation invocation,
+  and such invocations are called
+  {\em chained operation invocations}.
+  
+Why is this distinction important?
+Well, the golden rule in \lstinline|jqueues|
+  is that
+  {\em only state changes
+       due to top-level operation invocations on an entity
+       must be atomically reported to that entity's listeners,
+       and only (obviously) after the operation has completed.}
+It sounds complicated, but we think it makes more sense
+  than to report each individual operation invocation,
+  probably exposing an inconsistent state of the entity.
 
-Once the \lstinline|UPDATE| operation has been
-fulfilled, the \lstinline|ARR| (job arrival) operation,
-in this particular case,
-checks the number of jobs waiting,
-and drops the arriving job if the number is $2$ ($=$\lstinline|B|)
-by invoking the internal operation \lstinline|DROP|.
-However, for job $1$ in the example,
-it finds an empty waiting area,
-and, in addition, no job being served at the server.
-This means that the job is taking into service immediately
-(the \lstinline|START| internal operation),
-and since the required service time is non-zero,
-the queue schedules a {\em departure event\/}
-at $t=3.2$.
-The departur event, in turn,
-will invoke the internal \lstinline|DEP| (job departure)
-event because of which the job
-will eventually depart from the queueing system.
+In Figure \ref{fig:EntityModel},
+  at $t=1$,
+  \lstinline|E.OP1| is invoked from the event list,
+  so this invocation is a top-level one.
+However,
+  {\em while\/} \lstinline|E.OP1| {\em is being processed},
+  the entity invokes \lstinline|E.OP2|,
+  which is therefore a chained invocation.
+It is crucial to understand that
+  while \lstinline|E.OP1| also
+  schedules the invocation of \lstinline|E.OP3|
+  at $t=3.2$,
+  the latter when processed will be a top-level invocation
+  on its own.
+Referring to the lower right part of the figure,
+  a listener thus receives a mandatory \lstinline|UPDATE|
+  notification at $t=1$,
+  indicating a non-trivial progress of time
+  (from $t=0$ to $t=1$; we silently assumed that
+   the simulation starts at $t=0$)
+  without state changes.
+It then receives a single \lstinline|STATE_CHANGED|
+  notification from the \lstinline|E.O1|
+  invocation at $t=1$,
+  but notification holds both
+  \lstinline|E.O1| and \lstinline|E.O2|
+  as sub-notifications,
+  because \lstinline|E.O2|
+  was invoked from within the
+  context of \lstinline|E.O1|.
+Their joint effect on the state
+  is thus described in a single atomic notification.
 
-So, what more is there to say.
-Well, we seem to have so called {\em external\/}
-and {\em internal\/} operations,
-the latter of which we cannot schedule ourselves
-(departures, drops, $\ldots$).
-In a way, the external operations allow us
-to subject a queue to some kind of {\em workload\/}
-consisting of arriving jobs
-(as well as of, yet undescribed, other external operations on the queue).
-The internal operations, on the other hand,
-are always involved from within the queue itself,
-either as a response to a scheduled event,
-or as a response to an invocation of an external operation
-in combination with a state condition
-(e.g., the arrival of a job while $2$ jobs are already waiting
-causes the internal \lstinline|DROP| operation to be invoked).
+\subsection{Top-Level Notifications and Sub-Notifications}
 
-\section{The \texttt{Update} Operation}
-\label{sec:guided:update}
-
-In the previous section we introduced the
-\lstinline|UPDATE| and \lstinline|STATE CHANGED|
-notifications,
-and explained that on a \lstinline|SimEntity|,
-every state-change must be reported,
-and that the \lstinline|UPDATE| notification
-exposes the old state of the entity
-for (for instance) statistics gathering.
-However, there also exits an \lstinline|Update|
-operation.
-Its function is to set the \lstinline|LastUpdateTime|
-state property of the entity.
-The example shown in
-Listing \ref{simExample1_update_main}
-with output
-shown in Listing \ref{simExample1_update_out}
-demonstrates its use,
-again using utility methods
-for scheduling.
-As the output shows,
-there seems to be little use in the \lstinline|Update|
-operation; it just updates the time at $t=8.5$ and $t=1000$.
-The reason why you would ever want to use \lstinline|Update|
-is a bit involved,
-and deferred until Chapter \ref{chap:entities-queues-jobs}.
-However, we included this example to demonstrate
-that the end-time of the simulation can be
-controlled through scheduling an \lstinline|Update|
-operation.
-In the next section, we will delve a little deeper
-into the end-time of a simulation.
-
-\begin{lstfloat}
-	\begin{lstlisting}[
-	caption={The use of the \texttt{Update} operation.},
-	label=simExample1_update_main,
-	basicstyle=\tiny]
-	
-	final SimEventList el = new DefaultSimEventList ();
-	final int bufferSize = 2;
-	final FCFS_B queue = new FCFS_B (el, bufferSize);
-	queue.registerStdOutSimEntityListener ();
-	for (int j = 0; j < 4; j++)
-	{
-	final double jobServiceTime = (double) 2.2 * j;
-	final double jobArrivalTime = (double) j;
-	final String jobName = Integer.toString (j);
-	final SimJob job = new DefaultSimJob (null, jobName, jobServiceTime);
-	SimJQEventScheduler.scheduleJobArrival (job, queue, jobArrivalTime);
-	}
-	SimEntityEventScheduler.scheduleUpdate (el, queue, 8.5);
-	SimEntityEventScheduler.scheduleUpdate (el, queue, 1000.0);
-	el.run ();
-	
-	\end{lstlisting}
-\end{lstfloat}
-
-\begin{lstfloat}
-	\begin{lstlisting}[
-	caption={The output of Listing \ref{simExample1_update_main}.},
-	label=simExample1_update_out,
-	basicstyle=\tiny]
-	
-	StdOutSimEntityListener t=0.0, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=0.0, entity=FCFS_B[2]: STATE CHANGED:
-	=> ARRIVAL [Arr[0]@FCFS_B[2]]
-	=> START [Start[0]@FCFS_B[2]]
-	=> DEPARTURE [Dep[0]@FCFS_B[2]]
-	StdOutSimEntityListener t=1.0, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=1.0, entity=FCFS_B[2]: STATE CHANGED:
-	=> ARRIVAL [Arr[1]@FCFS_B[2]]
-	=> START [Start[1]@FCFS_B[2]]
-	=> STA_FALSE [StartArmed[false]@FCFS_B[2]]
-	StdOutSimEntityListener t=2.0, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=2.0, entity=FCFS_B[2]: STATE CHANGED:
-	=> ARRIVAL [Arr[2]@FCFS_B[2]]
-	StdOutSimEntityListener t=3.0, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=3.0, entity=FCFS_B[2]: STATE CHANGED:
-	=> ARRIVAL [Arr[3]@FCFS_B[2]]
-	StdOutSimEntityListener t=3.2, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=3.2, entity=FCFS_B[2]: STATE CHANGED:
-	=> DEPARTURE [Dep[1]@FCFS_B[2]]
-	=> START [Start[2]@FCFS_B[2]]
-	StdOutSimEntityListener t=7.6000000000000005, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=7.6000000000000005, entity=FCFS_B[2]: STATE CHANGED:
-	=> DEPARTURE [Dep[2]@FCFS_B[2]]
-	=> START [Start[3]@FCFS_B[2]]
-	StdOutSimEntityListener t=8.5, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=14.200000000000001, entity=FCFS_B[2]: UPDATE.
-	StdOutSimEntityListener t=14.200000000000001, entity=FCFS_B[2]: STATE CHANGED:
-	=> DEPARTURE [Dep[3]@FCFS_B[2]]
-	=> STA_TRUE [StartArmed[true]@FCFS_B[2]]
-	StdOutSimEntityListener t=1000.0, entity=FCFS_B[2]: UPDATE.
-	
-	\end{lstlisting}
-\end{lstfloat}
-
-In summary:
+In the previous section
+  we learned that entities are obliged to report
+  state changes atomically.
+On order to avoid potential confusion,
+  we need to properly introduce
+  some notification-related terminology.
+  
+A {\em top-level notification\/} is the invocation
+  of a method on the registered listeners of an entity.
+There exist only the following three types of top-level
+  notifications:
 \begin{itemize}
-  \item Queues and jobs are collectively referred to as simulation {\em entities}.
-  \item Simulation entities always start in a known type-specific {\em default state},
-          also referred to their \lstinline|RESET STATE| upon construction
-          and upon performing their \lstinline|RESET| operation.
-  \item Simulation entities must always report any change to their state through
-	  \lstinline|STATE CHANGED| notifications to registered {\em listeners}.
-  \item Simulation entities only change their state
-          as a result of the invocation of a well-defined
-          {\em operation\/} on the entity.
-        The operation can be external (like \lstinline-ARRIVAL-)
-          or internal (like \lstinline-START-, \lstinline-DROP-, and \lstinline-DEPARTURE-).
-  \item Any operation invocation takes zero (simulation) time to perform.
-        Upon invocation of an operation, the new simulation time has to be supplied
-          by the caller.
-        With the exception of the \lstinline|RESET| operation,
-          the new time provided must not be strictly smaller than the
-          time of the previous invocation (of {\em any\/} operation).
-  \item Before even starting the transformation from an old state into a new state,
-	  simulation entities must always expose their {\em old\/} state
-	  with a \lstinline|UPDATE| notification.
-  \item Depending on the registered listener,
-	  a simulation entity also fires {\em courtesy\/} notifications,
-          revealing only a specific aspect of the state change.
-        Courtesy notifications are {\em always\/} fired {\em after\/}
-          the applicable \lstinline|STATE CHANGED| notification.
+\item \lstinline|RESET|:
+  The entity has been put into its reset state,
+    either because its underlying \lstinline|SimEventList|
+    was reset, or because its \lstinline|Reset|
+    operation was invoked.
+  A \lstinline|RESET| notification is equipped with
+    the {\em old\/} time, i.e.,
+    the time {\em before\/} the reset,
+    and the {\em reset time\/},
+    i.e., the {\em new\/} time on the entity\footnote{
+    See the description of the \lstinline|lastUpdateTime|
+    further in this chapter.}.
+  It is important to realize that a \lstinline|RESET|
+    notification is the only one allowed to
+    "set back" the time on the entity,
+    and that it is only issued as a result
+    of the invocation of its \lstinline|Reset|
+    operation, typically induced from resetting the event list.
+  Hence,
+    a \lstinline|RESET| notification is {\em not\/}
+    issued upon construction of the entity,
+    {\em not\/} upon its attachment to a \lstinline|SimEventList|.
+\item \lstinline|UPDATE|:
+  The entity is {\em about to\/} change its state
+    because an operation on it was invoked,
+    and it exposes {\em its old state\/}
+    and the time at which the update occurs.
+  The \lstinline|UPDATE| notification
+    primarily targets statistics-gathering listeners
+    that need to know the interval length during
+    which the entity's state remained constant.
+\item \lstinline|STATE_CHANGED|:
+  The entity has been subject to the external
+    invocation of one of its operations,
+    and it exposes its {\em new\/} state
+    and the time at which and the manner in which
+    the new state was reached.
+  The description of the transformation of the old state
+    into the new one is done through a sequence
+    of {\em sub-notifications\/} described below.
+  A \lstinline|STATE_CHANGED| notification
+    is not issued when the entity has been reset.
+\end{itemize}
+Note that there is no dedicated \lstinline|Java| type
+  for top-level notifications,
+  simply because at the present time,
+  we see no purpose in extending
+  the current three-sized set of top-level notifications.
+
+A {\em sub-notification\/} is a precise description
+  of an aspect of an entity's state transformation.
+For the purpose of this description,
+  it is always part of a top-level \lstinline|STATE_CHANGED|
+  notification.
+So, in itself,
+  a sub-notification is incomplete.
+However, it unambiguously reports
+  a state transformation,
+  and the state's a priori and a posteriori
+  conditions.
+So given an entity's state
+  (that is valid)
+  and a sub-notification,
+  one can always predict
+  the new state of the entity.
+Often,
+  it just takes multiple sub-notifications in sequence
+  to describe a \lstinline|STATE_CHANGED| notification,
+  which explains their existence.
+  
+A sub-notification is a tuple of its {\em type\/},
+  an object implementing \lstinline|SimEntitySubNotificationType|,
+  and its arguments.
+The actual type of a sub-notification
+  defines its required arguments and their structure.
+By default,
+  a \lstinline|SimEntity| can only emit
+  sub-notification types in a \lstinline|STATE_CHANGED|
+  notification that have been {\em registered\/}
+  at that entity.
+The process of registering sub-notification types
+  is taken care of in the constructors
+  of the various \lstinline|SimEntity|
+  sub-types and concrete implementations.
+  
+\subsection{Properties}
+
+In \lstinline|jqueues|,
+  we adopt the notion of object {\em properties\/}
+  from \lstinline|JavaBeans|,
+  and we silently assume that the reader
+  is familiar with the basic concepts
+  of \lstinline|JavaBeans|.
+We follow the property-naming conventions,
+  and in \lstinline|jqueues|,
+  we only use property names starting
+  with a lower-case letter.
+
+For any \lstinline|SimEntity|,
+  we classify its properties as follows\footnote{
+  This classification is \texttt{jqueues}-specific;
+  it is not part of \texttt{JavaBeans}.}:
+\begin{itemize}
+\item {\em\bf State Properties\/}
+        are part of the entity's simulation state;
+        their values can only change as a result of the invocation
+        of registered operations on the entity.
+      You should never (attempt to) set them directly from user code.
+      For a queue, for instance,
+        the set of currently visiting jobs
+        is a state property.
+\item {\em\bf Essential Properties} are {\em not\/} part
+        of the entity's simulation state;
+        they do, however, affect the
+        functionality of an entity's operations,
+        {\em and\/} the entity assumes that
+        their values {\em remain constant while running a simulation}.
+      Hence, 
+        their values can only be changed under certain conditions,
+        and certainly {\em not\/} (by whatever means)
+        {\em while running a simulation}.
+      The buffer size of \lstinline|FCFS_B|,
+        a \lstinline|FCFS| queueing system with finite buffer space,
+        is an example of an essential property,
+      because its value decides whether or not an arriving job
+        is {\em dropped\/} in the presence of jobs present.
+      In other words,
+        it affects among others the \lstinline|Arrival| operation.
+\item {\em\bf Cosmetic Properties\/} are {\em not\/} part
+        of the entity's simulation state,
+        but unlike essential properties,
+        their values can be changed
+        at any time without affecting the simulation state of the entity
+        or the functionality of any of its operations.
+      Their values may even be changed from an event.
+      The name of an entity is a cosmetic property;
+        its value, by contract,
+        never affect the state of the entity
+        nor the functionality of its operations.
+\end{itemize}
+Note that many sub-types of \lstinline|SimEntity|
+  put even stronger restrictions on
+  setting an essential property.
+In many cases,
+  you can only set it {\em upon construction\/},
+  or only {\em immediately after a\/} \lstinline|Reset| operation.
+  
+\section{Mandatory Properties of a \texttt{\bf SimEntity}}
+
+In Table \ref{SimEntity_Properties},
+  we list the mandatory properties of a \lstinline|SimEntity|,
+  classifying them into state, essential and cosmetic
+  properties introduced previously.
+  
+\begin{table}
+\caption{Mandatory properties of a \lstinline|SimEntity|.}
+\label{SimEntity_Properties}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+{\bf Name} & {\bf Type} & {\bf Default/Reset} \\
+\hline
+\multicolumn{3}{|c|}{} \\
+\multicolumn{3}{|c|}{\lstinline[basicstyle=\large]{SimEntity}} \\
+\multicolumn{3}{|c|}{} \\
+\hline
+\multicolumn{3}{|c|}{} \\
+\multicolumn{3}{|c|}{\bf State Properties} \\
+\multicolumn{3}{|c|}{} \\
+\hline
+\lstinline|lastUpdateTime| & \lstinline|double| & From \lstinline|eventList|; \\
+                           &                    & $-\infty$ if absent. \\
+\hline
+\multicolumn{3}{|c|}{} \\
+\multicolumn{3}{|c|}{\bf Essential Properties} \\
+\multicolumn{3}{|c|}{} \\
+\hline
+\lstinline|eventList| & \lstinline|SimEventList| & From constructor; \\
+                      &                          & may be \lstinline|null|. \\
+\hline
+\lstinline|ignoreEventListReset| & \lstinline|boolean| & \lstinline|false|. \\
+\hline
+\lstinline|registeredOperations| & \lstinline|Set<SimEntityOperation>|
+                                 & Sub-type-dependent; \\
+                      &          & set in constructor(s). \\
+\hline
+\lstinline|unknownOperationPolicy| & \lstinline|UnknownOperationPolicy|
+                                   & \lstinline|ERROR|; \\
+                        &          & settable by user. \\
+\hline
+\lstinline|registeredNotificationTypes|
+  & \lstinline|Set<Member>|\tablefootnote{In fact,
+       \lstinline|SimEntitySimpleEventType.Member|.}
+  & Sub-type-dependent; \\
+  {\em deprecated}
+  & & set in constructor(s). \\
+\hline
+\lstinline|registeredSubNotificationTypes|
+  & \lstinline|Set<SubNotificationType>|
+  & Sub-type-dependent; \\
+  {\em since r5.3} &          & set in constructor(s). \\
+\hline
+\lstinline|unknownNotificationPolicy| & \lstinline|UnknownNotificationPolicy|
+                                           & \lstinline|ERROR|; \\
+{\em deprecated}        &                  & settable by user. \\
+\hline
+\lstinline|unknownSubNotificationTypePolicy| & \lstinline|UnknownSubNot...Policy|\tablefootnote{
+       \lstinline|UnknownSubNotificationTypePolicy|.}
+                                          & \lstinline|ERROR|; \\
+{\em since r5.3}        &                 & settable by user. \\
+\hline
+\multicolumn{3}{|c|}{} \\
+\multicolumn{3}{|c|}{\bf Cosmetic Properties} \\
+\multicolumn{3}{|c|}{} \\
+\hline
+\lstinline|name| & \lstinline|String| & \lstinline|null|. \\
+\hline
+\lstinline|simEntityListeners| & \lstinline|List<SimEntityListener>| & Empty \lstinline|List|. \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+The only mandatory state property is \lstinline|lastUpdateTime|
+  holding the (a posteriori) simulation time of the last
+  (invocation of the) \lstinline|Update|
+  or \lstinline|Reset| operation, whichever occurred last.
+Note that upon construction,
+  a \lstinline|SimEntity| always enters its reset state,
+  which sets the initial value of \lstinline|lastUpdateTime|.
+This implicit \lstinline|Reset|, however,
+  is {\em not\/} notified to listeners
+  because there cannot be any.
+  
+Among the essential properties are
+  \lstinline|registeredOperations|
+  and
+  \lstinline|registeredSubNotificationTypes|,
+  reporting the registered operations and notification sub-types,
+  respectively.
+Typically,
+  implementations will return unmodifiable views
+  on the underlying collections.
+There are also essential properties that govern a
+  \lstinline|SimEntity|'s behavior when an
+  unregistered operation on it is invoked,
+  or when its implementation asks for the emission
+  of a sub-notification it does not know.
+Both features are of little practical use,
+  except perhaps for testing purposes.
+Last but not least,
+  the \lstinline|simEventList| property holds
+  the event list to which the entity is attached.
+Typically,
+  the event list is passed to the constructor
+  of concrete \lstinline|SimEntity| implementations,
+  and setting it properly is actually mandatory
+  for certain sub-types
+  like queues (\lstinline|SimQueue|).
+However, {\em if\/} a \lstinline|SimEntity| is attached to a
+  \lstinline|SimEventList|,
+  the former will register at the latter
+  and automatically perform a \lstinline|Reset|
+  upon a reset of the event list.
+This behavior
+  is controlled through the \lstinline|ignoreEventListReset|
+  property, but this should {\em never\/}
+  be changed by user code; it is strictly meant for
+  implementation use.
+  
+The two mandatory cosmetic properties on a \lstinline|SimEntity|
+  are its registered listeners (\lstinline|simEntityListeners|),
+  which will be described in more detail in the next section,
+  and its \lstinline|name|.
+Despite being a "cosmetic" property,
+  setting the \lstinline|name|
+  of a \lstinline|SimEntity|
+  is often quite important.
+Typically,
+  if you do not set it,
+  implementations of \lstinline|SimEntity|
+  will use a {\em type-specific\/}
+  \lstinline|String|
+  for the \lstinline|toString| method;
+  otherwise,
+  they will supply the value of the \lstinline|name|
+  property.
+So,
+  if you are studying a single queue like \lstinline|FCFS|,
+  there is really no need to set its name;
+  its default \lstinline|toString| representation
+  will be \lstinline|"FCFS"|,
+  which is clear enough.
+If, however,
+  you use multiple queues of the same type,
+  or if distinct individual identification is required
+  of the {\em jobs\/} (\lstinline|SimJob|)
+  the queue(s) is/are subject to,
+  it is highly recommended to set the
+  \lstinline|name| property accordingly.
+(Another, implementation-driven argument for this approach
+  is that end users can set an entity's name
+  {\em even if the implementation is final}.
+On such implementations,
+  one clearly cannot override \lstinline|toString|.)
+  
+\section{Registering and Unregistering Listeners}
+
+As stated previously,
+  a \lstinline|SimEntity| must always report state changes atomically
+  to each registered listener.
+In \lstinline|jqueues|,
+  such listeners have type \lstinline|SimEntityListener|,
+  and they can be registered and
+  unregistered at any time on a \lstinline|SimEntity|
+  through the \lstinline|registerSimEntityListener|
+  and \lstinline|unregisterSimEntityListener|
+  methods, respectively.
+The set of currently registered listeners of an entity
+  is available through its \lstinline|simEntityListeners| property,
+  which is a cosmetic property and
+  thus {\em not\/} part of the entity's state.
+  
+\section{Mandatory Operations on a \texttt{\bf SimEntity}}
+
+Every \lstinline|SimEntity| {\em must\/} support the following operations,
+  all of which are {\em external\/}:
+\begin{itemize}
+\item \lstinline|Reset|: This operation puts the entity into its reset state,
+                           and sets its \lstinline|lastUpdateTime| property
+                           to the time argument provided.
+                         It is the {\em only\/} operation allowed to
+                           "set back" the time on the entity.
+                         The \lstinline|RESET| operation is not meant
+                           to be invoked directly from user code.
+                         If the \lstinline|SimEntity| is attached to an
+                           event list, through its \lstinline|simEventList| property,
+                           it will reset itself automatically when the
+                           attached event list resets.
+                         A \lstinline|SimEntity| will issue
+                           a \lstinline|UPDATE| notification first
+                           when its \lstinline|Reset| operation is (explicitly) invoked,
+                           and after completion, it will notify its listeners
+                           with a \lstinline|RESET| notification.
+                         Upon construction,
+                           a \lstinline|SimEntity| always enters its reset state,
+                           possibly overriding state-property values
+                           (directly or indirectly) from the
+                           constructor arguments.
+                         This is an implicit invocation of \lstinline|Reset|
+                           which is not reported to listeners.
+\item \lstinline|Update|: This operation sets the \lstinline|lastUpdateTime|
+                            property on the entity from the time argument supplied,
+                            and notifies listeners through the \lstinline|UPDATE|
+                            notification,
+                            providing both a priori and a posteriori simulation time.
+                          It {\em never\/} modifies state properties other than
+                            \lstinline|lastUpdateTime|.
+\item \lstinline|DoOperation|: This "meta operation" invokes the operation
+                                 provided as argument.
+                               The operation has to be registered at the
+                                 \lstinline|SimEntity|; if not
+                                 the behavior of the entity is controlled
+                                 by the value of its
+                                 \lstinline|unknownOperationPolicy| property.
+                               The operation-specific arguments have to be provided
+                                 as well.
 \end{itemize}
 
-\section{Resetting Entities}
+\section{Summary}
 
-Every simulation entity (queue or job) supports the
-external \lstinline-RESET- operation
-that puts the entity into its {\em default\/} or
-{\em reset\/} state.
-It is the only operation that is allowed to
-set {\em back\/} the time.
-The new time on the entity is taken from the event list,
-or to $-\infty$ if no event list is available.
-
-The \lstinline-RESET- state of an entity depends
-on the type of entity,
-but it must be clearly specified.
-It is, however, subject to strict rules,
-as shown in Tables
-\ref{resetStateSettings-queue}
-and
-\ref{resetStateSettings-job}.
-For instance,
-in the \lstinline|RESET| state,
-a queue is empty (no jobs visiting).
-The \lstinline|QueueAccessVacation| and
-\lstinline|ServerAccessCredits|
-properties will be decribed shortly
-in the next sections.
-In its \lstinline|RESET| state,
-a job is not visiting any queue;
-its \lstinline|Queue| propery is \lstinline|null|.
-Beware however,
-that queues are mandatorily attached to the event list,
-whereas for jobs this is not required.
-A queue will therefore set
-the \lstinline|Queue| property to \lstinline|null|
-for the jobs that it forcibly removes.
-
-\begin{table}[h]
-	\caption{Mandatory settings in the \texttt{RESET} state
-		of a queue.}
-	\label{resetStateSettings-queue}
-	\begin{center}
-		\begin{tabular}{|l|l|l|}
-			\hline
-			Property & Type & Default Value \\ \hline
-			\lstinline|LastUpdateDate|      & \lstinline|double|      & From event list or $-\infty$.               \\ \hline
-			\lstinline|Jobs|                & \lstinline|Set<SimJob>| & Empty set.                                  \\ \hline
-			\lstinline|QueueAccessVacation| & \lstinline|boolean|     & \lstinline|false|.                          \\ \hline
-			\lstinline|ServerAccessCredits| & \lstinline|int|         & \lstinline|Integer.MAX_VALUE| (==$\infty$). \\ \hline
-			\lstinline|StartArmed|          & \lstinline|int|         & Depends on \lstinline|SimQueue| type.       \\ \hline
-		\end{tabular}
-	\end{center}
-\end{table}
-
-\begin{table}[h]
-	\caption{Mandatory settings in the \texttt{RESET} state
-		of a job.}
-	\label{resetStateSettings-job}
-	\begin{center}
-		\begin{tabular}{|l|l|l|}
-			\hline
-			Property & Type & Default Value \\ \hline
-			\lstinline|LastUpdateDate|      & \lstinline|double|      & From event list or $-\infty$.               \\ \hline
-			\lstinline|Queue|               & \lstinline|SimQueue|    & \lstinline|null|.                           \\ \hline
-		\end{tabular}
-	\end{center}
-\end{table}
-
-\section{Summary of the \texttt{SimEntity} Interfaces}
-\label{sec:guided:simentity-model}
-
-In this section,
-having seen almost all aspects of \lstinline|SimEntity|s,
-\lstinline|SimJob|s,
-and \lstinline|SimQueue|s,
-we summarize their state and behavior.
-We have two purposes in mind:
+In this chapter, we introduced the core concept of \lstinline|jqueues|,
+  viz., \lstinline|SimEntity|s.
+Below, we summarize the contents of this chapter:
 \begin{itemize}
-	\item To present the material presented thus far in a format
-	that allows you to assert your understanding
-	of the fundamental concepts in \lstinline|jqueues|
-	and \lstinline|jsimulation|.
-	\item To present the interfaces in a compact overview format
-	that can be used as a reference.
-	Really, at this point we have covered almost every aspect
-	of entities, queues, and jobs, and their listeners.
-	The remainder of this Chapter will focus at some
-	left-overs and an important class of queues
-	named {\em composite queues}.
-	The remainder of this entire book is really
-	about explaining rigorously the abstract interfaces
-	and the specific concrete types
-	of queues (mostly), jobs and listeners,
-	and about how you can build your own.
-	In other words, the summary presented in this section
-	is quite complete already,
-	hence it is worth using as a reference.
+\item In \lstinline|jqueues|,
+        we are primarily interested in the behavior in simulation time
+        of objects named {\em (simulation) entities}.
+\item Simulation entities model objects from the real-world
+        problem domain; they are represented as \lstinline|SimEntity|
+        \lstinline|Java| objects.
+      Queues and jobs are typically instantiations of entities.
+\item A \lstinline|SimEntity| has a well-defined
+        {\em simulation state\/},
+        which is a subset of the \lstinline|Java|
+        object state.
+      The simulation state can only change as a result
+        of the invocation of registered \lstinline|SimOperation|s
+        on the entity.
+\item The invocation of an operation on a \lstinline|SimEntity|
+        from the event list is called a {\em top-level operation invocation}.
+      Such invocation may induce the invocation of other operations
+        on the \lstinline|SimEntity|; these are called {\em chained invocations}.
+\item A \lstinline|SimEntity| processes and reports its
+        top-level operation invocations {\em atomically}.
+      The reports of state changes are through \lstinline|STATE_CHANGED|
+        notifications, which consists of a sequence of {\em sub-notifications\/}
+        each describing a specific, well-defined, transformation of
+        the entity's state.
+\item Like operations, sub-notifications need to be of a known type,
+        well documented,
+        and registered at the \lstinline|SimEntity|.
+\item A \lstinline|SimEntity| exposes its \lstinline|Object|
+        state through \lstinline|JavaBeans| properties.
+      A property can be a {\em state\/} property,
+        representing an aspect of the entity's simulation state,
+        a {\em essential\/} property,
+        having dominant effect on the behavior of operations,
+        or a {\em cosmetic\/} property,
+        which does {\em not\/} have that effect.
+\item Each \lstinline|SimEntity| must support the
+        \lstinline|Reset|, \lstinline|Update|
+        and \lstinline|DoOperation| operations.
+\item Each \lstinline|SimEntity| must support the
+        \lstinline|RESET|, \lstinline|UPDATE|
+        and \lstinline|STATE_CHANGED| top-level notifications.
 \end{itemize}

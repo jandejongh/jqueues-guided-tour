@@ -382,3 +382,78 @@ Well, since \lstinline{SimEventList} implements the \lstinline{Set} interface fo
   \lstinline{el.remove (e)}.
 However,
   the preferred method is \lstinline|el.cancel (e)|.
+
+\section{Summary}
+
+The fundamental concepts in
+\lstinline|jsimulation| are:
+\begin{itemize}
+\item The \lstinline|Java| package named \lstinline|jsimulation|
+  is a library for (single-threaded) discrete-event simulation.
+\item The \lstinline|Java| package named \lstinline|jqueues|
+  is a library for (single-threaded) discrete-event simulation
+  of queueing systems.
+  The library depends on \lstinline|jsimulation|.
+\item In order to perform discrete event simulations,
+  an event list is needed, on which events can be scheduled.
+  The event list maintains an ordering of the events it contains
+  in non-decreasing simulation time.
+  Typically, a single instance of an event list is used
+  throughout the entire simulation study.
+  The corresponding (abstract) types
+  for event lists and events are defined in \lstinline|jsimulation|,
+  and named \lstinline|SimEventList| and \lstinline|SimEvent|, respectively.
+  This package also provides a reasonable implementation for
+  a \lstinline|SimEventList| named \lstinline|DefaultSimEventList|.
+\item On a \lstinline|SimEventList|, all scheduled \lstinline|SimEvent|s are
+  unique; you cannot schedule a \lstinline|SimEvent| more than once
+  on a single \lstinline|SimEventList|.
+  Typically, \lstinline|SimEvent|s are created and scheduled through
+  various utility methods.
+\item The time at which a \lstinline|SimEvent| is scheduled,
+  is kept on the \lstinline|SimEvent| itself,
+  and available though the \lstinline|SimEvent.getTime| method.
+  Once scheduled, you cannot change the time of a \lstinline|SimEvent|.
+  You can, however, reschedule it at a different time
+  through the \lstinline|SimEventList.reschedule| method.
+\item It is perfectly legel if multiple \lstinline|SimEvent|s are scheduled
+  at the same time.
+  On a \lstinline|DefaultSimEventList|, they are processed in random order.
+\item With each \lstinline|SimEvent|, an action is associated that determines
+  what to do when the event is processed by the event list.
+  The generic type in \lstinline|jsimulation| is \lstinline|SimEventAction|.
+  Unlike \lstinline|SimEvent|s, \lstinline|SimAction| need not be unique
+  on the event list, and can be shared among different events.
+\item Once sufficient events have been scheduled,
+  a simulation experiment starts by running or processing
+  the event list.
+  In \lstinline|jsimulation|,
+  you can run the \lstinline|SimEventList| until it is exhausted
+  of events through the \lstinline|SimEventList.run| method,
+  until it has reached a specific simulation time
+  through the \lstinline|SimEventList.runUntil| method,
+  or on an event-by-event basis through \lstinline|SimEventList.runSingleStep|.
+\item A \lstinline|SimEventList| keeps a notion of simulation time.
+  It is available through \lstinline|SimEventList.getTime|.
+  While running,
+  this is always the scheduled time of the current event being processed.
+  When not, it is always smaller than or equal to the time
+  on the first scheduled \lstinline|SimEvent|.
+\item You cannot schedule (at the risk of an \lstinline|Exception|)
+  a \lstinline|SimEvent| with time
+  strictly smaller than the current simulation time
+  on the \lstinline|SimEventList|.
+\item Event may be scheduled simultaneously,
+  in which case their order of processing is {\em random}.
+\item Events may be scheduled at $t=-\infty$ and $t=+\infty$.
+\item The \lstinline|SimEventList.reset|
+  and \lstinline|SimEventList.reset (double)|
+  methods reset the event list,
+  meaning all scheduled \lstinline|SimEvent|s are removed from the list,
+  and the time on the event list is set to its default time (first method)
+  or given time.
+  The typical use case of these methods is running the simulation again
+  (for instance, for variance-reduction purposes).
+  You cannot invoke either method while the event list is being processed,
+  at the risk of an \lstinline|Exception|.
+\end{itemize}
