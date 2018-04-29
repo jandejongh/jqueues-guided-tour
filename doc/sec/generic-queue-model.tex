@@ -215,7 +215,7 @@ This means that the job is taking into service immediately
 and since the required service time is non-zero,
 the queue schedules a {\em departure event\/}
 at $t=3.2$.
-The departur event, in turn,
+The departure event, in turn,
 will invoke the internal \lstinline|DEP| (job departure)
 event because of which the job
 will eventually depart from the queueing system.
@@ -617,67 +617,6 @@ Since the total "amount of work"
   the joint departure time of jobs $1$, $3$, and $4$,
   should be $1.0+17.6=18.6$,
   which is indeed confirmed in the output.
-
-\section{The Waiting and Service Area of a \texttt{SimQueue}}
-\label{sec:guided:wait-serv-area}
-
-Every queue (\lstinline|SimQueue|) consists of
-  a {\em waiting area\/} and a {\em service area},
-  and visiting jobs are always present in precisely
-  one of them,
-  see Figure \ref{fig:WaitingAndServiceArea}.
-Upon arrival, jobs enter the waiting area.
-If they \lstinline|START|,
-  they leave the waiting area and
-  enter the service area.
-An important and perhaps non-intuitive restriction
-  is that {\em jobs cannot move back from the service area
-  into the waiting area}.
-Jobs may \lstinline|DEPART| from,
-  be \lstinline|DROP|ped from,
-  or be \lstinline|REVOKE|d from
-  either area.
-Jobs that do {\em not\/} leave the queue
-  are named {\em sticky\/} jobs;
-  they may reside in either area.
-
-\begin{figure}[h]
-\label{fig:WaitingAndServiceArea}
-\caption{The waiting and service areas of a \texttt{SimQueue}.}
-\includegraphics[width=\textwidth]{fig/WaitingAndServiceArea}
-\end{figure}
-
-The model for queues in terms of waiting and service area is,
-  admittedly, somewhat deviant from models in literature.
-The main point is that we make {\em no\/} assumptions
-  whatsoever on the structure of the waiting and service areas.
-But for most known queueing systems,
-  the waiting area is simply a queue holding waiting jobs,
-  often in FIFO (First-In First-Out) order,
-  and the service area consists of one of more servers
-  serving jobs until completion.
-In (classical) processor-sharing queues,
-  there is virtually no waiting area,
-  as jobs enter the service area immediately.
-
-There are two more "complications" to bear in mind:
-\begin{itemize}
-  \item Since jobs cannot move back from the service area
-          into the waiting area,
-          one has to let go of the intuitive notion that
-          jobs in the service area area actually {\em being served}.
-        Despite the fact that this is true for many queueing systems,
-          it is false for systems like Preemptive/Resume Last-Come First-Served
-          (\lstinline|P_LCFS|),
-          and many other preemptive queueing systems.
-        In \lstinline|P_LCFS|, whenever a job in the service area is preempted
-          in favor of a new arrival,
-          the preempted jobs stays in the service area,
-          yet receives no service (at least, not for a while).
-  \item In order for jobs to be eligible to \lstinline|START|,
-          the queue needs so-called \lstinline|ServerAccessCredits|.
-        These are described in more detail in the next section.
-\end{itemize}
 
 In Table \ref{simqueue-methods-areas},
   we list the most important methods related to waiting and service areas

@@ -230,6 +230,7 @@ Their joint effect on the state
   is thus described in a single atomic notification.
 
 \subsection{Top-Level Notifications and Sub-Notifications}
+\label{sec:entities:notifications}
 
 In the previous section
   we learned that entities are obliged to report
@@ -477,6 +478,7 @@ This implicit \lstinline|Reset|, however,
   is {\em not\/} notified to listeners
   because there cannot be any.
   
+\begin{sloppypar}
 Among the essential properties are
   \lstinline|registeredOperations|
   and
@@ -512,7 +514,9 @@ This behavior
   property, but this should {\em never\/}
   be changed by user code; it is strictly meant for
   implementation use.
+\end{sloppypar}
   
+\begin{sloppypar}
 The two mandatory cosmetic properties on a \lstinline|SimEntity|
   are its registered listeners (\lstinline|simEntityListeners|),
   which will be described in more detail in the next section,
@@ -548,6 +552,7 @@ If, however,
   {\em even if the implementation is final}.
 On such implementations,
   one clearly cannot override \lstinline|toString|.)
+\end{sloppypar}
   
 \section{Registering and Unregistering Listeners}
 
