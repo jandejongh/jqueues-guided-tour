@@ -1,0 +1,124 @@
+In this book, we describe two \lstinline|Java|
+  libraries for discrete-event simulation of queueing systems, (1) \lstinline|jsimulation|
+  provides support for events, event lists, event scheduling and actions, and (2) \lstinline|jqueue| which
+  extends \lstinline|jsimulation| with support
+  for the simulation of queueing systems.
+In Chapter \ref{chap:hello-world}
+  we provide a guided tour
+  to both packages,
+  whereas in Chapters
+  \ref{chap:events-actions-event-list}
+  and
+  \ref{chap:entities}
+  \ref{chap:jobs-and-queues}
+  we describe in detail
+  \lstinline|jsimulation|
+  and \lstinline|jqueues|,
+  respectively.
+In Chapters \ref{chap:fundamental-queues}
+  and \ref{chap:composite-queues} we describe
+  all available implementations
+  of fundamental and composite
+  queueing systems,
+  respectively.
+In Chapter \ref{chap:listeners} we {\bf XXX}.
+Finally, in Chapter \ref{chap:statistics},
+  we explain how to obtain statistics
+  from a simulation (run).
+
+Although we have at this time of writing not yet
+  completed the road map for our next release,
+  we intend to include the following new features:
+\begin{itemize}
+  \item The seeding of random-number generators
+          upon a reset,
+          either from a manually provided
+          {\em seed value\/},
+          or from a suitable {\em seed generator}.
+        The latter, though, requires a study
+          on the implementation of
+          \lstinline|Java|'s \lstinline|Random|
+          class,
+          i.e.,
+          its pseudo-random generator.
+  \item A wider support for random-number generation,
+          allowing other implementations than
+          \lstinline|Java|'s \lstinline|Random| class.
+  \item A new high-performance model
+          for composite queues,
+          either as a backwards-compatible
+          extension to the present \lstinline|SimQueueComposite| interface,
+          or as a new queue type alongside it.
+        The main idea is to allow jobs to
+          visit sub-queues themselves,
+          instead of through delegate jobs.
+        We actually tried to include this
+          feature into the current release,
+          but this led to an impossibly complex
+          concept of composite queues,
+          and we did not manage to properly
+          implement the current set of
+          composite queues (and their associated tests).
+        Therefore, we reverted our efforts,
+          and satisfied ourselves with the current
+          model for composite queues.
+  \item Several single-server processor-sharing queueing disciplines
+          in which the relative execution rates of the jobs in the
+          service area depends on either:
+          \begin{itemize}
+            \item The per-job QoS value, which we then need to restrict to a number.
+                  Our improvised name for this queueing system is
+                    \lstinline|DPS|, or {\em Discriminatory Processor Sharing}.
+            \item The relative {\em share\/} of jobs with {\em identical\/}
+                    QoS values, i.e., (sorry for the confusion here) the per-job-{\em class\/}
+                    QoS value.
+                  This approach requires a \lstinline|Map<P, Double>|,
+                    mapping QoS values (of generic type \lstinline|P|)
+                    onto relative {\em per-job\/} execution rates.
+                  If applicable, each job present of a specific QoS value
+                    (i.e., class of jobs) receives the same relative priority.
+                  We intend to name this queueing system \lstinline|PPS|,
+                    or {\em Priority Processor Sharing}.
+            \item The relative {\em share\/} of the job {\em class}.
+                  This approach is comparable to the previous one,
+                    yet makes multiple jobs of a single job class
+                    {\em share equally\/} their execution rate;
+                    it also requires a \lstinline|Map<P, Double>|,
+                    mapping QoS values (of generic type \lstinline|P|)
+                    onto relative {\em per-class\/} execution rates.
+                  We intend to name this queueing system \lstinline|GPPS|,
+                    or {\em Group-Priority Processor Sharing}.
+          \end{itemize}
+        More background on these queueing systems,
+          and some motivation for their naming is
+          given in \cite{deJo2002}.
+  \item The \lstinline|DUPS| (fundamental) queue type;
+          the abbreviation stands for
+          {\em Decay-Usage Processor Sharing}.
+        In \lstinline|DUPS|,
+          jobs are served on a single processor-sharing queue,
+          but their relative execution rates
+          are inversely proportional
+          to their obtained service times.
+  \item Support for servers with different "capacity".
+        For instance, we are considering the
+          development of a \lstinline|EncCap| encapsulator
+          (composite) queue with an
+          essential property \lstinline|Capacity|
+          that "scales" the required service time on the
+          encapsulated queue.
+        We are also considering an extension to the
+          \lstinline|SimJob| interface to
+          include assessment of the required job service time
+          in the presence of queues with varying capacity.
+        At the moment, though, we do not consider
+          server capacities that can {\em change\/} in time.
+        (Since that would make the capacity a state property,
+           and far more complicated.)
+        Note that for certain queue types like
+          server-less queues or \lstinline|SUR|,
+          the concept of server capacity has no meaning.
+        So we also need a good definition of the whole concept,
+          including for which queue types it applies.
+  \item Support for replications and batched means.
+\end{itemize}

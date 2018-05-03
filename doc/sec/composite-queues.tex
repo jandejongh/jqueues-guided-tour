@@ -306,5 +306,2007 @@ We hope you are curious to the answers
   \item When does a real job start?
   \item How do server-access credits work on a composite queue?
 \end{itemize}
-If so, please consult Chapter \ref{chap:composite}.
 
+\section{Introduction}
+
+Composite queues consist of zero or more other queues
+  named {\em subqueues\/} or {\em embedded queues},
+  and a visit of a job to the composite queue is
+  equivalent to a sequence of visits to the subqueues,
+  the order of which is determined by the composite queue.
+The most prominent example of a composite queue is called a {\em tandem queue\/},
+  consisting of a finite sequence of (distinct) queues that a job must visit
+  in order before leaving the composite queue.
+If we number the subqueues $1, 2, \ldots, K$,
+  a job visiting the tandem queue, must first complete
+  a visit to queue $1$, and upon departure from queue $1$,
+  it immediately arrives at queue $2$, and so forth,
+  until it departs from queue $K$,
+  at which time it leaves the tandem queue.
+Using the previous chapters,
+  it is actually rather easy to construct a tandem queue,
+  e.g., a tandem queue consisting of two \lstinline|P_LCFS| queues,
+  as we have shown in Listing \ref{compExampleTandem1_main} below.
+The output of the program is shown in Listing \ref{compExampleTandem1_out}.
+
+\begin{lstlisting}[
+% XXX Do not know how to use \lstinline inside the caption...
+caption={A tandem queue consisting of two P\_LCFS queues (using SimJob).},
+label=compExampleTandem1_main,
+basicstyle=\tiny
+]
+private static final class TandemJob
+extends DefaultSelfListeningSimJob
+{
+
+  final List<SimQueue> queues;
+    
+  public TandemJob (final SimEventList eventList,
+    final String name,
+    final double requestedServiceTime,
+    final List<SimQueue> queues)
+  {
+    super (eventList, name, requestedServiceTime);
+    this.queues = queues;
+    this.registerSimEntityListener (new StdOutSimEntityListener ());
+  }
+
+  @Override
+  public void notifyDeparture (final double time,
+    final DefaultSelfListeningSimJob job,
+    final SimQueue queue)
+  {
+    if (this.queues.indexOf (queue) < this.queues.size () - 1)
+      getEventList ().schedule (time, (SimEventAction) (SimEvent event) ->
+    {
+      queues.get (queues.indexOf (queue) + 1).arrive (time, job);
+    });
+  }
+
+}
+  
+public static void main (final String[] args)
+{    
+  final SimEventList el = new DefaultSimEventList ();
+  el.reset (0);
+  final P_LCFS lcfs_1 = new P_LCFS (el, null);
+  lcfs_1.setName ("Q1");
+  final P_LCFS lcfs_2 = new P_LCFS (el, null);
+  lcfs_2.setName ("Q2");
+  final List<SimQueue> queueSequence = new ArrayList<> ();
+  queueSequence.add (lcfs_1);
+  queueSequence.add (lcfs_2);
+  for (int j = 1; j <= 5; j++)
+    lcfs_1.scheduleJobArrival (j, new TandemJob (el, "J" + j, 10 * j, queueSequence));
+  el.run ();
+}
+\end{lstlisting}
+
+\begin{lstlisting}[
+caption={Output of the program in Listing \ref{compExampleTandem1_main}.},
+label=compExampleTandem1_out,
+basicstyle=\tiny
+]
+StdOutSimEntityListener t=1.0, queue=Q1: ARRIVAL of job J1.
+StdOutSimEntityListener t=1.0, queue=Q1: START of job J1.
+StdOutSimEntityListener t=2.0, queue=Q1: ARRIVAL of job J2.
+StdOutSimEntityListener t=2.0, queue=Q1: START of job J2.
+StdOutSimEntityListener t=3.0, queue=Q1: ARRIVAL of job J3.
+StdOutSimEntityListener t=3.0, queue=Q1: START of job J3.
+StdOutSimEntityListener t=4.0, queue=Q1: ARRIVAL of job J4.
+StdOutSimEntityListener t=4.0, queue=Q1: START of job J4.
+StdOutSimEntityListener t=5.0, queue=Q1: ARRIVAL of job J5.
+StdOutSimEntityListener t=5.0, queue=Q1: START of job J5.
+StdOutSimEntityListener t=55.0, queue=Q1: DEPARTURE of job J5.
+StdOutSimEntityListener t=55.0, queue=Q2: ARRIVAL of job J5.
+StdOutSimEntityListener t=55.0, queue=Q2: START of job J5.
+StdOutSimEntityListener t=94.0, queue=Q1: DEPARTURE of job J4.
+StdOutSimEntityListener t=94.0, queue=Q2: ARRIVAL of job J4.
+StdOutSimEntityListener t=94.0, queue=Q2: START of job J4.
+StdOutSimEntityListener t=123.0, queue=Q1: DEPARTURE of job J3.
+StdOutSimEntityListener t=123.0, queue=Q2: ARRIVAL of job J3.
+StdOutSimEntityListener t=123.0, queue=Q2: START of job J3.
+StdOutSimEntityListener t=142.0, queue=Q1: DEPARTURE of job J2.
+StdOutSimEntityListener t=142.0, queue=Q2: ARRIVAL of job J2.
+StdOutSimEntityListener t=142.0, queue=Q2: START of job J2.
+StdOutSimEntityListener t=151.0, queue=Q1: DEPARTURE of job J1.
+StdOutSimEntityListener t=151.0, queue=Q2: ARRIVAL of job J1.
+StdOutSimEntityListener t=151.0, queue=Q2: START of job J1.
+StdOutSimEntityListener t=161.0, queue=Q2: DEPARTURE of job J1.
+StdOutSimEntityListener t=172.0, queue=Q2: DEPARTURE of job J2.
+StdOutSimEntityListener t=183.0, queue=Q2: DEPARTURE of job J3.
+StdOutSimEntityListener t=194.0, queue=Q2: DEPARTURE of job J4.
+StdOutSimEntityListener t=205.0, queue=Q2: DEPARTURE of job J5.
+\end{lstlisting}
+
+In the example, $5$ jobs are scheduled to arrive at
+  a tandem queueing system consisting of
+  the sequence of
+  two \lstinline|P_LCFS| queues
+  named
+  \lstinline|Q1| and \lstinline|Q2|.
+The jobs arrive at $t=1, 2, \dots, 5$,
+  and require service times at {\em each\/} of the \lstinline|P_LCFS| queues
+  of $10$, $20$, \ldots, $50$, respectively.
+Given the high required service times compared to the
+  interarrival times,
+  the jobs leave \lstinline|Q1|,
+  in reverse order of arrival.
+However, again because of the relatively high required service times,
+  no job can depart from \lstinline|Q2| before the next arrival
+  at that queue.
+As a result,
+  \lstinline|Q2| again reverses the order of arriving job in its departure
+  process, and jobs depart from \lstinline|Q2| in order of arrival at the first queue
+  (and at the virtual tandem queue).
+
+Despite the intriguing result that a tandem queue consisting of two
+  \lstinline|P_LCFS| queues {\em can\/} behaves like a \lstinline|FCFS|
+  queue with modified service-time requirement,
+  and the fact that the tandem queue was so easy to realize,
+  we want to focus at the implementation of the tandem queue,
+  because there are some issues with it.
+Most important,
+  we explained in the beginning of this section,
+  that a composite queue behaves like the equivalent
+  of its subqueues equipped with some
+  {\em rouing\/} of jobs between these subqueues.
+However, in the example, there is no notion of a composite
+  \lstinline|SimQueue| at all!
+The job-arrival process "somehow know" that \lstinline|Q1|
+  is the first queue at which jobs must arrive,
+  and the jobs {\em themselves\/} route themselves
+  to the "next queue".
+In other words, all the "logic" related to routing jobs in a
+  tandem queue is implemented in the arrival process and
+  in the job implementation,
+  whereas we really want these to be part of the tandem queue,
+  the \lstinline|SimQueue|.
+This, for instance, would allow {\em any\/} to properly visit the
+  composite \lstinline{SimQueue} without knowledge on its
+  (internal) structure.
+
+Well, allowing {\em any\/} \lstinline|SimJob| to visit
+  the tandem queue is not that difficult,
+  as is shown in Listing \ref{compExampleTandem2_main} below.
+All we have to do is listen to departure events
+  on \lstinline|Q1| and then schedule an arrival event at \lstinline|Q2|.
+
+\begin{lstlisting}[
+% XXX Do not know how to use \lstinline inside the caption...
+caption={A tandem queue consisting of two P\_LCFS queues (using SimQueue).},
+label=compExampleTandem2_main,
+basicstyle=\tiny
+]
+public static void main (final String[] args)
+{    
+  final SimEventList el = new DefaultSimEventList ();
+  el.reset (0);
+  final P_LCFS lcfs_1 = new P_LCFS (el, null);
+  lcfs_1.setName ("Q1");
+  final P_LCFS lcfs_2 = new P_LCFS (el, null);
+  lcfs_2.setName ("Q2");
+  lcfs_1.registerSimEntityListener (new DefaultSimEntityListener ()
+  {
+    @Override
+    public void notifyDeparture (final double time, final SimJob job, final SimQueue queue)
+    {
+      el.schedule (time, (SimEventAction) (SimEvent event) ->
+      {
+        lcfs_2.arrive (time, job);
+      });
+    }
+  });
+  for (int j = 1; j <= 5; j++)
+  {
+    final SimJob job = new DefaultSimJob (el, "J" + j, 10 * j);
+    lcfs_1.scheduleJobArrival (j, job);
+    job.registerSimEntityListener (new StdOutSimEntityListener ());
+  }
+  el.run ();
+}
+\end{lstlisting}
+
+The result of the program is identical to that shown in \ref{compExampleTandem1_out},
+  and the program itself is surprisingly short
+  (we no longer have to create a dedicated \lstinline|SimJob| for the tandem queue).
+This suggests (luckily) that the \lstinline|jqueues| package has sufficient means to
+  model composite queues manually.
+However, we are still faced with the problems that there is not really a notion
+  of a composite queue, and we have not tackled the more generic problem of
+  putting \lstinline|SimQueue|s is tandem:
+\begin{itemize}
+\item What if any of the subqueues {\em drops} the job?
+\item How to revoke a jobs from a composite queue?
+\item How to obtain statistics on the composite queue?
+\end{itemize}
+In other words,
+  what we really want is an implementation of a \lstinline|SimQueue|
+  that behaves as the concatenation of visits to its subqueues.
+In Listing \ref{compExampleTandem3_main} we show this
+  approach using a \lstinline|BlackTandemSimQueue|
+  described in this chapter,
+  with its output in \ref{compExampleTandem3_out}.
+
+\begin{lstlisting}[
+% XXX Do not know how to use \lstinline inside the caption...
+caption={A tandem queue consisting of two P\_LCFS queues (using BlackTandemSimQueue).},
+label=compExampleTandem3_main,
+basicstyle=\tiny
+]
+public static void main (final String[] args)
+{    
+  final SimEventList el = new DefaultSimEventList ();
+  el.reset (0);
+  final P_LCFS lcfs_1 = new P_LCFS (el, null);
+  lcfs_1.setName ("Q1");
+  final P_LCFS lcfs_2 = new P_LCFS (el, null);
+  lcfs_2.setName ("Q2");
+  final Set<SimQueue> subQueues = new LinkedHashSet<>  ();
+  subQueues.add (lcfs_1);
+  subQueues.add (lcfs_2);
+  final BlackTandemSimQueue compositeQueue = new BlackTandemSimQueue (el, subQueues, null);
+  for (int j = 1; j <= 5; j++)
+  {
+    final SimJob job = new DefaultSimJob (el, "J" + j, 10 * j);
+    compositeQueue.scheduleJobArrival (j, job);
+    job.registerSimEntityListener (new StdOutSimEntityListener ());
+  }
+  el.run ();
+}
+\end{lstlisting}
+
+\begin{lstlisting}[
+caption={Output of the program in Listing \ref{compExampleTandem3_main}.},
+label=compExampleTandem3_out,
+basicstyle=\tiny
+]
+StdOutSimEntityListener t=1.0, queue=Tandem[Q1,Q2]: ARRIVAL of job J1.
+StdOutSimEntityListener t=1.0, queue=Tandem[Q1,Q2]: START of job J1.
+StdOutSimEntityListener t=2.0, queue=Tandem[Q1,Q2]: ARRIVAL of job J2.
+StdOutSimEntityListener t=2.0, queue=Tandem[Q1,Q2]: START of job J2.
+StdOutSimEntityListener t=3.0, queue=Tandem[Q1,Q2]: ARRIVAL of job J3.
+StdOutSimEntityListener t=3.0, queue=Tandem[Q1,Q2]: START of job J3.
+StdOutSimEntityListener t=4.0, queue=Tandem[Q1,Q2]: ARRIVAL of job J4.
+StdOutSimEntityListener t=4.0, queue=Tandem[Q1,Q2]: START of job J4.
+StdOutSimEntityListener t=5.0, queue=Tandem[Q1,Q2]: ARRIVAL of job J5.
+StdOutSimEntityListener t=5.0, queue=Tandem[Q1,Q2]: START of job J5.
+StdOutSimEntityListener t=161.0, queue=Tandem[Q1,Q2]: DEPARTURE of job J1.
+StdOutSimEntityListener t=172.0, queue=Tandem[Q1,Q2]: DEPARTURE of job J2.
+StdOutSimEntityListener t=183.0, queue=Tandem[Q1,Q2]: DEPARTURE of job J3.
+StdOutSimEntityListener t=194.0, queue=Tandem[Q1,Q2]: DEPARTURE of job J4.
+StdOutSimEntityListener t=205.0, queue=Tandem[Q1,Q2]: DEPARTURE of job J5.
+\end{lstlisting}
+
+The latter example shows exactly what we want:
+  The creation of a new \lstinline|SimQueue|
+  that behaves exactly like a tandem configuration of two other queues.
+Admittedly, the code in the example is not particularly smaller
+  than that of the previous examples,
+  and the latter examples can certainly be used as a starting point
+  for the study of tandem (and other composite) queues.
+However, if, for instance, you want to create a new \lstinline|SimQueue| type
+  that is the equivalent of other queues that are somehow interconnected,
+  or if you want to study nested composite queues,
+  then constructing a composite queue is a much faster
+  (and more reliable) approach.
+
+The extensive support for composite queues
+  is one of the most distinguishing features of \lstinline|jqueues|.
+Next to tandem queues, there is support for various types of
+  {\em feedback\/} queues, {\em encapsulated\/} queues
+  and {\em parallel\/} queues.
+In the next chapter we describe these composite queues in detail.
+In the remainder of the present chapter,
+  we introduce some important concepts that
+  apply to {\em any\/} composite queue.
+
+\section{The SimQueueComposite Interface}
+\label{sec:simqueuecomposite}
+
+In the \lstinline|jqueues| implementation,
+  composite queues implement the \lstinline|SimQueueComposite| interface,
+  which, in turn, inherits from \lstinline|SimQueue|.
+
+\begin{tabular}{|l|l|l|l|}
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\lstinline[basicstyle=\large]{SimQueueComposite}} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\bf Super} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & \multicolumn{3}{|l|}{See Section \ref{simqueue-generic}.} \\
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\bf Essential Properties} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\lstinline|Queues| & C & \lstinline|Set<SimQueue>| & The sub-queues; \\
+	& & & non-\lstinline|null| and non-empty. \\
+	\hline
+	\lstinline|SimQueueSelector| & C & \lstinline|SimQueueSelector| & The sub-queue selector. \\
+	\hline
+	\lstinline|DelegateSimJobFactory| & C & \lstinline|DelegateSimJobFactory| & The factory for delegate jobs. \\
+	\hline
+	\lstinline|StartModel| & V & \lstinline|StartModel| & The start model (virtual). \\
+	\hline
+\end{tabular}
+
+\subsection{The 'Queues' Property}
+\label{sec:simqueuecomposite-queues}
+
+The value of the 'Queues' property of a \lstinline|SimQueueComposite|
+  is a \lstinline|Set| holding the subqueues of the composite queue.
+The property can only be set upon construction of the composite queue;
+  and cannot be changed thereafter,
+  but the sub-queues can be accessed through \lstinline|getQueues ()|.
+(Note that the \lstinline|Set| returned should {\em not\/} be modified.)
+Since the order of the subqueues is important to most composite-queue types,
+  the implementation of \lstinline|getQueues ()| {\em must\/} maintain
+  a deterministic ordering of the sub-queues.
+  
+\subsection{The 'SimQueueSelector' Property and Type}
+
+The \lstinline|SimQueueSelector| property
+  of a \lstinline|SimQueueComposite| is of type \lstinline|SimQueueSelector|,
+  an interface capable of routing jobs through queues,
+  in this particular case,
+  of routing {\em delegate\/} jobs through {\em sub-queues}.
+The property is set (or created) upon construction and
+  cannot be changed afterwards.
+Note that
+  for most concrete implementations of \lstinline|SimQueueComposite|,
+  the route of jobs through the sequence of sub-queues is implied,
+  and the queue selector
+  is simply created on the fly
+  in the constructor of the \lstinline|SimQueueComposite|.
+  
+\begin{tabular}{|l|l|l|l|}
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\lstinline[basicstyle=\large]{SimQueueSelector}} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\bf Methods} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{3}{|l|}{\lstinline|void resetSimQueueSelector ()|} & Resets the selector. \\
+	\hline
+	\multicolumn{3}{|l|}{\lstinline|DQ selectFirstQueue ()|} & Selects the sub-queue to visit first. \\
+	\hline
+	\multicolumn{3}{|l|}{\lstinline|DQ selectNextQueue (DQ)|} & Selects the next sub-queue to visit. \\
+	\hline
+\end{tabular}
+
+The \lstinline|SimQueueSelector| of a \lstinline|SimQueueComposite|
+  can have a {\em state\/}
+  in the same sense as for \lstinline|SimQueue|s;
+  the selector is therefore automatically {\em reset\/}
+  upon a reset
+  at the \lstinline|SimQueueComposite|
+  to which it is attached.
+(The reverse, by the way, is not true in general.)
+
+A \lstinline|SimQueueComposite| {\em must\/} always consult
+  its \lstinline|SimQueueSelector| in order
+  to find the first or next sub-queue to visit,
+  even if that is obvious from the definition of the composite queue
+  (like in, for instance, \lstinline|Tandem| described in Section \ref{sec:Tandem}).
+If either of the selection methods return \lstinline|null|,
+  the real job by default departs from the \lstinline|SimQueueComposite|,
+  though there are exceptions to this rule
+  (like in the \lstinline|Col| queueing system described in Section \ref{sec:Col}).
+
+\subsection{The 'DelegateSimJobFactory' Property and Type}
+
+The value of the \lstinline|DelegateSimJobFactory| property is an object of type \lstinline|DelegateSimJobFactory|,
+i.e.,
+ capable of creating {\em delegate\/} jobs from {\em real\/} jobs.
+It is passed or created upon construction
+  of the \lstinline|SimQueueComposite|.
+It can be changed afterwards at any time.
+  
+\begin{tabular}{|l|l|l|l|}
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\lstinline[basicstyle=\large]{DelegateSimJobFactory}} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\bf Annotations} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{4}{|l|}{\lstinline|@FunctionalInterface|} \\
+	\hline
+	\multicolumn{4}{|c|}{} \\
+	\multicolumn{4}{|c|}{\bf Methods} \\
+	\multicolumn{4}{|c|}{} \\
+	\hline
+	\multicolumn{3}{|l|}{\lstinline|void resetFactory (double, Q)|} & Resets the factory. \\
+	\hline
+	\multicolumn{3}{|l|}{\lstinline|DJ newInstance (double, J, Q)|} & Creates a new delegate job. \\
+	\hline
+\end{tabular}
+
+The \lstinline|double| arguments hold the (reset/current) time.
+
+\subsection{The 'StartModel' Hidden Property and Type}
+\label{sec:start-model}
+
+The \lstinline|StartModel| property of a \lstinline|SimQueueComposite| is {\em hidden},
+  see Section \ref{sec:exposed-hidden-properties},
+  and {\em essential}, see Section \ref{sec:essential-properties}.
+Nonetheless, it is crucial in quickly understanding and referring to
+the mapping of the life-cycle of a real job on a specific type of composite queue
+onto that of the corresponding delegate job,
+and vice versa.
+It also describes the semantics of the
+  server-access credits on the composite queue.
+We will describe the possible values of this property (up to now) in the next sections.
+
+\subsubsection{\lstinline|LocalStart|}
+\label{sec:startmodel-localstart}
+
+In the \lstinline|LocalStart| model,
+  arriving real jobs at the composite queue
+  have to acquire a server-access credit
+  on that queue in order for their
+  delegate jobs to arrive at their respective sub-queues.
+Once a credit is obtained,
+  the corresponding delegate job arrives
+  at the first sub-queue,
+  and the real job enters the service area
+  of the composite queue.
+When a delegate job exits in any other way than through departure from a sub-queue,
+  the corresponding real job exist the composite queue in the same way (i.e., drop or revocation; auto-revocations on any of the sub-queues are {\em not\/} allowed).
+When it departs from a sub-queue,
+  the composite queue invokes the
+  \lstinline|selectNextQueue| on its
+  \lstinline|SimQueueSelector|,
+  and lets the delegate jobs arrive at its
+  new destination,
+  or, if the method returns \lstinline|null|,
+  discards the delegate job and lets the real job depart from the composite queue.
+In other words,
+  routing the delegate job through the
+  chain of sub-queues takes place while the
+  real job is in the service area.
+
+\subsubsection{\lstinline|CTandem2|}
+\label{sec:startmodel-ctandem2}
+
+In the \lstinline|CTandem2| model,
+  the composite queue has exactly two
+  (obviously, distinct) sub-queues,
+  named, respectively, the {\em wait\/}
+  and {\em serve\/} queues.
+If a real job is present on the composite queue,
+  then so is its delegate job on one of the two sub-queues;
+  if the real job is in the waiting area,
+  then the delegate job resides on the wait queue,
+  if the real job is in the service area,
+  then the delegate job resides on the serve queue.
+In  other words,
+  the start of the real job coincides with the
+  transfer of the delegate job from the wait to the
+  serve queue.
+  
+\subsubsection{\lstinline|Encapsulator|}
+\label{sec:startmodel-encapsulator}
+
+In the \lstinline|Encapsulator| model,
+  the composite queue has a single sub-queue,
+  named, {\em encapsulated\/} queues.
+If a real job is present on the composite queue,
+  then so is its delegate job on the sub-queue.
+By default,
+  if the real job is in the waiting area,
+  then the delegate job resides
+  in the waiting area of the encapsulated queue,
+  if the real job is in the service area,
+  then the delegate job resides in the serve area
+  of the encapsulated queue.
+The server-access credits on both
+  (composite and encapsulated) queues
+  are synchronized.
+  
+\section{Tandem Queues}
+\label{sec:tandem-queues}
+
+In tandem queues, visiting jobs must visit each sub-queue once
+  in a predetermined (and fixed) sequence.
+The list of (distinct) sub-queues is passed upon construction,
+  and cannot be changed afterwards.
+
+\subsection{The \lstinline{Tandem} \lstinline{SimQueue}}
+\label{sec:Tandem}
+
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Tandem}} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+Description & Serves jobs by letting their delegate jobs visit \\
+            & the sequence of sub-queues $\cal{Q}$ exactly once. \\
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf Super} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf State} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+QAV & Drops arriving jobs during QAVs. \\
+\hline
+NoWaitArmed & Always \lstinline|true|. \\
+\hline
+Waiting Area & Infinite waiting area, FIFO discipline. \\
+\hline
+SAC & The remaining number of arriving jobs that can have a delegate job \\
+    & arrive at the tandem queue. \\
+    & If zero, arriving jobs wait in the waiting area. \\
+    & \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+\hline
+Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf State Operations} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+Set QAV & Ends/starts a QAV. \\
+\hline
+Arrival & The queue accepts arrivals. \\
+\hline
+Drop & Drops arriving jobs during QAVs. \\
+     & Drops a visiting job if its delegate job is dropped on any subqueue. \\
+\hline
+Revocation & Jobs can be revoked while waiting and while being served. \\
+\hline
+Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+        & Starts waiting jobs if SAC $> 0$. \\
+\hline
+Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+\hline
+Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf State  Invariants} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf Properties} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+\hline
+\lstinline|Name|       & The name, default "Tandem$[\cal{Q}]$"; non-\lstinline|null|; RW. \\
+\hline
+\end{tabular}
+
+\subsection{The \lstinline{CTandem2} \lstinline{SimQueueComposite}}
+\label{sec:CTandem2}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{CTandem2}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Compressed Tandem Queue with two Sub-Queues} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A two sub-queue tandem queue \\
+                & that lets jobs wait in the waiting area of the first queue, the waiting queue, \\
+                & and serves them according to the service area of the second queue. \\
+	\hline
+\multicolumn{2}{|c|}{} \\
+\multicolumn{2}{|c|}{\bf Super} \\
+\multicolumn{2}{|c|}{} \\
+\hline
+\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|Name|       & The name, default "CT2$[Q_{w},Q_{s}]$"; non-\lstinline|null|; non-\lstinline|null|; RW. \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|CTandem2|; RO. \\
+	\hline
+	\lstinline|EncQueue|     & The encapsulated queue $Q_{e}$ (only sub-queue); RO. \\
+	\hline
+\end{tabular}
+
+\section{Parallel Queues}
+
+In {\em paralllel\/} queueus, arriving jobs are sent to one and exactly one of the sub-queues,
+at which they are served until completion (exit),
+at which moment the real job exits the composite queue. Parallel queues only differ in their assignment strategy of an arriving job to the sub-queue at which the job is to be served.
+
+\subsection{The \lstinline{JSQ} \lstinline{SimQueueComposite}}
+\label{sec:JSQ}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{JSQ}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Join Shortest Queue} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs until exit on the sub-queue in $\cal{Q}$ \\
+	& with the smallest number of jobs present (in service). \\
+	& Ties are broken at random with equal probabilities. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "JSQ$[\cal{Q}]$"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{JRQ} \lstinline{SimQueueComposite}}
+\label{sec:JRQ}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{JRQ}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Join Random Queue} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs until exit on a random sub-queue in $\cal{Q}$. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "JRQ$[\cal{Q}]$"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{Pattern} \lstinline{SimQueueComposite}}
+\label{sec:Pattern}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Pattern}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Pattern} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs until exit on the sub-queue in $\cal{Q}$ \\
+	& assigned according to a predefined pattern. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|Pattern|    & The assignment pattern; \lstinline|int[]|; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "Pattern$[\cal{Q}]$"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{Parallel} \lstinline{SimQueueComposite}}
+\label{sec:Parallel}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Par}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Parallel} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs until exit on the sub-queue in $\cal{Q}$ \\
+	& selected by a user-supplied selector. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|Pattern|    & The assignment pattern; \lstinline|int[]|; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "Par$[\cal{Q}]$"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\section{Feedback Queues}
+
+An {\em feeback\/} queue has exactly one sub-queue which may be visited more than once.
+
+\subsection{The \lstinline{FB_v} \lstinline{SimQueueComposite}}
+\label{sec:FB_v}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{FB_v}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Feedback Queue with Fixed Number of Visits.} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs until exit a fixed number of times on the sub-queue in $\cal{Q}$. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|NumberOfVists|    & The number of visits; $>0$; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "FB\_\{NumberOfVisits\}[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{FB_p} \lstinline{SimQueueComposite}}
+\label{sec:FB_p}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{FB_p}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Probabilistic Feedback Queue} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs on the sub-queue in $\cal{Q}$, and upon exit at the sub-queue, \\
+	            & feeds back back a job to the input with fixed probability, \\
+	            & departing otherwise. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last sub-queue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|FeedbackProbability|    & The feedback probability; $\geq 0$; $\leq 1$, RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "FB\_\{FeedbackProbability\}[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{FB} \lstinline{SimQueueComposite}}
+\label{sec:FB}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{FB}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{General Feedback Queue.} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Serves jobs on the sub-queue in $\cal{Q}$, and upon exit at the sub-queue, \\
+	& feeds back a job to the input or makes it depart from the composite queue \\
+	& under control of a user-supplied {\em controller\/}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel| & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|FeedbackController|    & The feedback controller; RO. \\
+	\hline
+	\lstinline|Name|       & The name, default "FB[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\section{Jackson Queues}
+
+\subsection{The \lstinline{Jackson} \lstinline{SimQueueComposite}}
+\label{sec:Jackson}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Jackson}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Jackson Queueing System.} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Routes jobs between sub-queues or departure \\
+	            & according to a fixed routing probability matrix. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|PdfArrival|    & The arrival pdf; RO. \\
+	\hline
+	\lstinline|PdfTransition| & The transition pdf; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "Jackson[${\cal Q}$]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\section{Encapsulator Queues}
+
+An {\em encapsulator\/} queue has exactly one subqueue.
+
+\subsection{The \lstinline{Enc} \lstinline{SimQueueComposite}}
+\label{sec:Enc}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Enc}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Encapsulator} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Mimics the behavior of its (single) sub-queue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|Encapsulator|; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "Enc[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{EncHS} \lstinline{SimQueueComposite}}
+\label{sec:EncHS}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{EncHS}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Encapsulator-Hide-Start} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Mimics the behavior of its (single) sub-queue, \\
+	            & but hides the start of (delegate) jobs on the encapsulated queue.\\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State  Invariants} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\multicolumn{2}{|l|}{$|J(t)| = |J_{w}(t)| + \sum_{q \in \cal{Q}} |J_{q}(t)|.$} \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|Encapsulator|; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "EncHS[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{EncTL} \lstinline{SimQueueComposite}}
+\label{sec:EncTL}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{EncTL}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Encapsulator-Time-Limit} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Mimics the behavior of its (single) sub-queue, \\
+	& but respects fixed expiration times for \\
+	& waiting, service and sojourn times. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	QAV & Drops arriving jobs during QAVs. \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	Waiting Area & Infinite waiting area, FIFO discipine. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|Encapsulator|; RO. \\
+	\hline
+	\lstinline|MaxWaitingTime| & The maximum waiting time $T_{wa}$; RO. \\
+	\hline
+	\lstinline|MaxServiceTime| & The maximum service time $T_{se}$; RO. \\
+	\hline
+	\lstinline|MaxSojournTime| & The maximum sojourn time $T_{so}$; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "EncTL($T_{wa},T_{se}, T_{so}$)[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{EncJL} \lstinline{SimQueueComposite}}
+\label{sec:EncJL}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{EncJL}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Encapsulator-Job-Limit} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Mimics the behavior of its (single) sub-queue, \\
+	& but respects fixed limits on the number of jobs in \\
+	& the waiting area, the service area, and the queue as a whole. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|Encapsulator|; RO. \\
+	\hline
+	\lstinline|MaxJobsInWaitingArea| & The maximum number $L_{wa}$ of jobs \\
+	                                 & in the waiting area; RO. \\
+	\hline
+	\lstinline|MaxJobsInServiceArea| & The maximum number $L_{se}$ of jobs \\
+	& in the service area; RO. \\
+	\hline
+	\lstinline|MaxJobs| & The maximum number $L_{so}$ of jobs \\
+	& in the queueing system; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "EncJL($L_{wa},L_{se}, L_{so}$)[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{EncXM} \lstinline{SimQueueComposite}}
+\label{sec:EncXM}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{EncXM}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Encapsulator-Exit-Mapper} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & Mimics the behavior of its (single) sub-queue, \\
+	& but transforms a job exit on the sub-queue onto \\
+	& a possibly different exit method on the composite queue.\\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Set QAV & Ends/starts a QAV. \\
+	\hline
+	Arrival & The queue accepts arrivals. \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|Encapsulator|; RO. \\
+	\hline
+	\lstinline|DropMapping| & The drop mapping; \lstinline|MappableExitMethod|; RO. \\
+	\hline
+	\lstinline|AutoRevocationMapping| & The auto-revocation mapping; \lstinline|MappableExitMethod|; RO. \\
+	\hline
+	\lstinline|DepartureMapping| & The departure mapping; \lstinline|MappableExitMethod|; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "EncXM(\{$X_{a}\rightarrow X_{b}$\}*])[EncQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\section{Collector Queues}
+
+\subsection{The \lstinline|Col| \lstinline{SimQueueComposite}}
+\label{sec:Col}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Col}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Collector} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A queueing system with a {\em main\/} queue
+	              and a {\em collector\/} queue.  \\
+	            &
+	              Serves jobs on the main queue, but when it exits there, \\
+	            & allows the job to be collected on the {\em collector\/} queue.\\
+	            & Main and collector queues may be equal. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|MainQueue| & The main queue; RO. \\
+	\hline
+	\lstinline|CollectorQueue| & The collector queue; RO. \\
+	\hline
+	\lstinline|CollectDrops| & Whether to collect drops; RO. \\
+	\hline
+	\lstinline|CollectAutoRevocations| & Whether to collect auto-revocations; RO. \\
+	\hline
+	\lstinline|CollectDepartures| & Whether to collect departures; RO. \\
+	\hline
+	\lstinline|DepartureMapping| & The departure mapping; \lstinline|MappableExitMethod|; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "Col(\{$X_{a}\rightarrow X_{b}$\}*])[MainQueue$\rightarrow$CollectorQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{DropCol} \lstinline{SimQueueComposite}}
+\label{sec:DropCol}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{DropCol}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Drop Collector} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A queueing system with a {\em main\/} queue
+	and a {\em collector\/} queue, the {\em drop\/} queue.  \\
+	&
+	Serves jobs on the main queue, but when dropped there, \\
+	& sends them to the collector queue.\\
+	& Main and collector queues may be equal. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any subqueue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|MainQueue| & The main queue; RO. \\
+	\hline
+	\lstinline|CollectorQueue| & The collector queue; RO. \\
+	\hline
+	\lstinline|DropQueue| & \lstinline|== CollectorQueue|. \\
+	\hline
+	\lstinline|Name|          & The name, default "DropCol[MainQueue$\rightarrow$CollectorQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{ARevCol} \lstinline{SimQueueComposite}}
+\label{sec:ARevCol}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{ARevCol}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Auto-Revocation Collector} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A queueing system with a {\em main\/} queue
+	and a {\em collector\/} queue, the {\em auto-revocation\/} queue.  \\
+	&
+	Serves jobs on the main queue, but when auto-revoked there, \\
+	& sends them to the collector queue.\\
+	& Main and collector queues may be equal. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any sub-queue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|MainQueue| & The main queue; RO. \\
+	\hline
+	\lstinline|CollectorQueue| & The collector queue; RO. \\
+	\hline
+	\lstinline|AutoRevocationQueue| & \lstinline|==CollectorQueue|. \\
+	\hline
+	\lstinline|Name|          & The name, default "ARevCol[MainQueue$\rightarrow$CollectorQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\subsection{The \lstinline{DepCol} \lstinline{SimQueueComposite}}
+\label{sec:DepCol}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{DepCol}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Departure Collector} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A queueing system with a {\em main\/} queue
+	and a {\em collector\/} queue, the {\em departure\/} queue.  \\
+	&
+	Serves jobs on the main queue, but when they depart there, \\
+	& sends them to the collector queue.\\
+	& Main and collector queues may be equal. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any sub-queue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|MainQueue| & The main queue; RO. \\
+	\hline
+	\lstinline|CollectorQueue| & The collector queue; RO. \\
+	\hline
+	\lstinline|DepartureQueue| & \lstinline|==CollectorQueue|. \\
+	\hline
+	\lstinline|Name|          & The name, default "DepCol[MainQueue$\rightarrow$CollectorQueue]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}
+
+\section{Generic Composite Queues}
+
+\subsection{The \lstinline{Comp_LS} \lstinline{SimQueueComposite}}
+\label{sec:Comp_LS}
+
+\begin{tabular}{|l|l|}
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\lstinline[basicstyle=\large]{Comp_LS}} \\
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{Generic Composite Queue with Local-Start Model} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Description & A queueing system with a \lstinline|LocalStart| model \\
+	            & and user-supplied queue selector (i.e., \lstinline|SimQueueSelector|). \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Super} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|SimQueue| & See Section \ref{simqueue-generic}. \\
+	\lstinline|SimQueueComposite| & See Section \ref{sec:simqueuecomposite}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	NoWaitArmed & Always \lstinline|true|. \\
+	\hline
+	SAC & The remaining number of arriving jobs that can have a delegate job \\
+	& arrive at the tandem queue. \\
+	& If zero, arriving jobs wait in the waiting area. \\
+	& \lstinline|Integer.MAX_VALUE| is treated as $+\infty$. \\
+	\hline
+	Service Area & Holds the jobs whose delegate job have arrived {\em anywhere}. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf State Operations} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	Drop & Drops arriving jobs during QAVs. \\
+	& Drops a visiting job if its delegate job is dropped on any sub-queue. \\
+	\hline
+	Revocation & Jobs can be revoked while waiting and while being served. \\
+	\hline
+	Set SAC & Sets/overwrites SAC; \lstinline|Integer.MAX_VALUE| $== +\infty$. \\
+	& Starts waiting jobs if SAC $> 0$. \\
+	\hline
+	Start & Starts a job if its delegate job arrives {\em anywhere}. \\
+	\hline
+	Departure & Jobs depart if its delegate job departs from the last subqueue. \\
+	\hline
+	\multicolumn{2}{|c|}{} \\
+	\multicolumn{2}{|c|}{\bf Properties} \\
+	\multicolumn{2}{|c|}{} \\
+	\hline
+	\lstinline|StartModel|    & The start model; \lstinline|LocalStart|; RO. \\
+	\hline
+	\lstinline|Name|          & The name, default "Comp\_LS[${\cal Q}$]"; non-\lstinline|null|; RW. \\
+	\hline
+\end{tabular}

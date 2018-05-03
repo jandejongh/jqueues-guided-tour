@@ -1,0 +1,952 @@
+In this chapter,
+  we introduce {\em all\/}
+  \lstinline|SimQueue| implementations
+  for {\em fundamental\/}
+  queueing systems in \lstinline|jqueues|
+  Release 5.
+A queueing system is named {\em fundamental\/} if
+  it is not constructed by composition
+  of other queueing system instances
+  as in for instance
+  tandem, feedback and Jackson queueing systems.
+(This is a \texttt{jqueues}-specific definition.)
+Such {\em composite\/} queueing systems
+  are introduced and described in detail in
+  the next chapter.
+In the present chapter,
+  we describe the queueing systems to the extent
+  that they can be put to use in a simulation.
+It does not aim to be complete
+   in the individual descriptions, however.
+  
+\section{Serverless Queues}
+
+In so-called {\em serverless\/} queues,
+  jobs never enter the service area,
+  in other words,
+  {\em they never start}.
+As a result,
+  the service area of a serverless queue is
+  always empty,
+  server-access credits are ignored,
+  and the \lstinline|startArmed|
+  property is always \lstinline|false|.
+In Table \ref{tab:serverless-queues},
+  we list all serverless queues implemented in
+  \lstinline|jqueues|, accompanied with a brief
+  description.
+
+\begin{table}[!htbp]
+	\label{tab:serverless-queues}
+	\caption{The serverless queueing systems
+             in \texttt{jqueues} Release 5
+             at a glance.}
+	\begin{center}
+		\begin{tabular}{|l|l|}
+			\hline
+			\multicolumn{2}{|c|}{} \\
+			\multicolumn{2}{|c|}{Serverless Queues} \\
+			\multicolumn{2}{|c|}{} \\
+			\hline
+            \hline
+			\lstinline|DROP|
+              &
+              {\em Drops jobs immediately upon arrival.}
+              \\ \hline
+			\lstinline|SINK|
+              &
+              {\em Lets jobs wait indefinitely.}
+              \\ \hline
+			\lstinline|ZERO|
+              &
+              {\em Lets jobs depart immediately upon arrival.}
+              \\ \hline
+			\lstinline|DELAY|
+              &
+              {\em Lets jobs depart after a fixed wait time.}
+              \\ \hline
+			\lstinline|GATE|
+              &
+              {\em Lets jobs depart immediately}
+              \\
+              &
+              {\em while the queue has "gate-passage credits"}.
+              \\ \hline
+			\lstinline|ALIMIT|
+              &
+              {\em Drops (admitted) jobs if needed to not exceed} 
+              \\
+              &
+              {\em a given arrival-rate limit.} 
+              \\ \hline
+			\lstinline|DLIMIT|
+              &
+              {\em Lets jobs wait if needed to not exceed} 
+              \\
+              &
+              {\em a given departure-rate limit.} 
+              \\ \hline
+			\lstinline|LeakyBucket|
+              &
+              {\em Lets jobs wait if needed to not exceed} 
+              \\
+              &
+              {\em a given departure-rate limit;} 
+              \\
+              &
+              {\em the waiting area has finite size, though.} 
+              \\ \hline
+			\lstinline|WUR|
+              &
+              {\em Lets jobs wait until
+                   the next (admitted) arrival.} 
+              \\ \hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+It is important to realize that despite the virtual
+  absence of the service area,
+  a serverless queue still reports
+  running out of and regaining
+  server-access credits,
+  conform Section \ref{sec:guided:sac}.
+In addition,
+  all queues support queue-access vacations,
+  as outlined in Section \ref{sec:guided:qav},
+  and job revocations
+  described in Section \ref{sec:revoke}.
+  
+The \lstinline|DROP|,
+  \lstinline|SINK|,
+  \lstinline|ZERO|
+  and \lstinline|WUR|
+  queueing systems
+  hopefully
+  speak for themselves.
+These do not have additional properties,
+  operations, or sub-notification types
+  in addition to the bare \lstinline|SimQueue|
+  interface.
+
+The \lstinline|DELAY| queue
+  lets jobs depart (from the waiting area)
+  a fixed time after their arrival,
+  captured in the queue's
+  \lstinline|waitTime|
+  essential property
+  with type \lstinline|double|.
+Setting the property value to zero
+  turns \lstinline|DELAY| into
+  a \lstinline|ZERO|;
+  setting it to infinity
+  (\lstinline|Double.POSITIVE_INFINITY|)
+  turns it into a \lstinline|SINK|.
+  
+The \lstinline|GATE| queueing system is a bit
+  more involved.
+It features a \lstinline|gatePassgeCredits|
+  state property of type \lstinline|int|
+  holding the remaining number of jobs
+  allowed to depart
+  in order of arrival.
+On each departure,
+  the property value is decremented,
+  and if it reaches zero,
+  jobs are no longer allowed to depart;
+  they must reside in the waiting area instead.
+However,
+  the value \lstinline|Integer.MAX_VALUE|,
+  the reset value,
+  is treated as infinity;
+  prohibiting the decrements upon departures.
+If the property value reaches zero,
+  a \lstinline|GATE_CLOSED| sub-notification
+  is issued;
+  if credits are regained a \lstinline|GATE_OPEN|.
+The property value can be set through the
+  external \lstinline|SetGatePassageCredits|
+  operation.
+Note the high degree of similarity
+  with a \lstinline|SimQueue|'s
+  server-access credits
+  with \lstinline|GATE|'s
+  gate-passage credits.
+Informally,
+  the latter replaces the former
+  in view of the lack of starting jobs.
+  
+The \lstinline|ALIMIT|,
+  \lstinline|DLIMIT|
+  and \lstinline|LeakyBucket| queues
+  impose limits on arrival (for \lstinline|ALIMIT|)
+  or departure (for \lstinline|DLIMIT|
+  and \lstinline|LeakyBucket|) rates.
+Each is equipped
+  with a \lstinline|rateLimited|
+  state property of \lstinline|boolean|
+  type indicating that
+  the queue is currently in
+  {\em rate limitation},
+  as well as a \lstinline|rateLimit|
+  essential property of type
+  \lstinline|double|.
+In the current release,
+  changes to the \lstinline|rateLimited|
+  state property value are
+  {\em not\/} reported through
+  dedicated sub-notification types,
+  but since this is a violation
+  of the \lstinline|SimQueue| contract
+  (unless we think of the property as "internal"),
+  this will be fixed in a future release.
+
+The \lstinline|ALIMIT| queue
+  drops arriving jobs while it is
+  in rate limitation,
+  whereas both
+  \lstinline|DLIMIT|
+  and \lstinline|LeakyBucket|
+  put arriving jobs into the waiting area
+  until the rate limitation has expired.
+(This is in fact accomplished by an
+  anonymous internal operation.)
+The only difference between the latter two
+  is that \lstinline|LeakyBucket|
+  has a waiting area {\em of finite size\/}
+  as mandated by its \lstinline|bufferSize|
+  essential property.
+It is of type \lstinline|int|,
+  and, as usual,
+  the value \lstinline|Integer.MAX_VALUE|
+  is treated as infinity.
+The \lstinline|LeakyBucket| queue
+  drop jobs upon arrival
+  if it is in rate limitation
+  {\em and\/} there are
+  already \lstinline|bufferSize|
+  other jobs present in the waiting area.
+  
+For \lstinline|ALIMIT|,
+  rate limitation starts upon an admitted arrival\footnote{
+  In this context, an arriving job that is not dropped
+  due to queue-access vacation {\em or\/}
+  due to rate limitation},
+  and always ends $1/\mbox{\lstinline|rateLimit|}$
+  after that.
+As a special case,
+  setting \lstinline|rateLimit| to zero
+  effectively turns \lstinline|ALIMIT|
+  into a \lstinline|DROP|;
+  setting it to infinity
+  turns \lstinline|ALIMIT| into a \lstinline|ZERO|.
+Note that whatever the property value,
+  the \lstinline|ALIMIT|
+  queue {\em never\/} has jobs in its
+  waiting area (or its visit area, for that matter).
+For \lstinline|DLIMIT| and \lstinline|LeakyBucket|,
+  rate limitation {\em always\/} starts
+  or continues at a departure;
+  it lasts for $1/\mbox{\lstinline|rateLimit|}$,
+  {\em if\/} at the projected end time
+  the waiting area is empty.
+Otherwise,
+  the job longest in the waiting area
+  departs,
+  restarting rate limitation
+  for another $1/\mbox{\lstinline|rateLimit|}$.
+  
+Finally,
+  a noteworthy disambiguation
+  of \lstinline|LeakyBucket|
+  with zero \lstinline|bufferSize|
+  is that, shortly put,
+  absence of rate limitation takes precedence
+  over the absent buffer space.
+This means that {\em if\/} \lstinline|LeakyBucket|
+  is {\em not\/} in rate limitation,
+  arriving jobs will depart immediately
+  (starting a new rate-limitation period).
+
+\section{Non-Preemptive Queues}
+\label{sec:non-preemptive-queues}
+
+In \lstinline|jqueues|,
+  so-called {\em non-preemptive\/}
+  queues
+  serve jobs in their service area
+  until they depart.
+Jobs {\em never\/} depart from the waiting area.
+Non-preemptive queues in \lstinline|jqueues|
+  differ in
+  (1) the size of the waiting area (\lstinline|bufferSize|),
+  (2) the number of (always equal) servers in the service area
+      (\lstinline|numberOfServers|),
+  (3) the order in which jobs are selected
+      for service from the waiting area
+  and/or
+  (4) the selection policy for dropping jobs
+      in case the number of jobs waiting
+      is about to exceed the buffer size.
+In Table \ref{tab:non-preemptive-queues},
+  we list all non-preemptive queues implemented in
+  \lstinline|jqueues|, accompanied with a brief
+  description.
+The queues are presented in several groups,
+  each with important common structure and behavior.
+  
+\begin{table}[!htbp]
+	\label{tab:non-preemptive-queues}
+	\caption{The non-preemptive queueing systems
+             in \texttt{jqueues} Release 5
+             at a glance.}
+	\begin{center}
+		\begin{tabular}{|l|l|}
+			\hline
+			\multicolumn{2}{|c|}{} \\
+			\multicolumn{2}{|c|}{Non-Preemptive Queues} \\
+			\multicolumn{2}{|c|}{} \\
+			\hline
+            \hline
+              &
+              {\em Serves jobs
+                   in order of arrival
+                   until completion}
+              \\
+              &
+              {\em as defined by the jobs'
+                   requested service times...}
+              \\
+              &
+              \\
+			\lstinline|FCFS|
+              &
+              {\em - with a single server
+                     and infinite buffer size.}
+              \\
+			\lstinline|FCFS_B|
+              &
+              {\em - with a single server
+                     and finite buffer size.}
+              \\
+			\lstinline|FCFS_c|
+              &
+              {\em - with multiple servers
+                     and infinite buffer size.}
+              \\
+			\lstinline|FCFS_B_c|
+              &
+              {\em - with multiple servers
+                     and finite buffer size.}
+              \\
+			\lstinline|NoBuffer_c|
+              &
+              {\em - with multiple servers
+                     and no buffer at all.}
+              \\
+			\lstinline|IS|
+              &
+              {\em - with infinite servers
+                     and infinite buffer size.}
+              \\
+            \hline
+              &
+              {\em Serves jobs
+                   in reverse order of arrival
+                   until completion}
+              \\
+              &
+              {\em as defined by the jobs'
+                   requested service times...}
+              \\
+              &
+              \\
+			\lstinline|LCFS|
+              &
+              {\em - with a single server
+                     and infinite buffer size.}
+              \\
+			\lstinline|LCFS_B|
+              &
+              {\em - with a single server
+                     and finite buffer size.}
+              \\
+            \hline
+              &
+              {\em Serves jobs in order of arrival...}
+              \\
+              &
+              \\
+			\lstinline|IC|
+              &
+              {\em - in zero service time
+                     with infinite buffer size.} 
+              \\
+			\lstinline|IS_CST|
+              &
+              {\em - in constant service time
+                     with infinite buffer size.}
+              \\
+            \hline
+              &
+              {\em Serves jobs
+                   until completion
+                   with a single server}
+              \\
+              &
+              {\em as defined by the jobs'
+                   requested service times...}
+              \\
+              &
+              \\
+			\lstinline|SJF|
+              &
+              {\em - in order
+                     of increasing requested service time...} 
+              \\
+			\lstinline|LJF|
+              &
+              {\em - in order
+                     of decreasing requested service time...} 
+              \\
+			\lstinline|RANDOM|
+              &
+              {\em - in random order...}
+              \\
+              &
+              \\
+              &
+              {\em with infinite buffer size.} 
+              \\
+            \hline
+			\lstinline|SUR|
+              &
+              {\em Serves jobs until
+                   the next (admitted) arrival} 
+              \\
+              &
+              {\em with a single server
+                   and infinite buffer size.} 
+              \\
+            \hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+Before going into details on the respective groups
+  of non-preemptive queueing systems,
+  it is important to realize that each of them
+  is subject to the mechanism
+  of server-access credits explained in
+  Section \ref{sec:guided:sac}.
+Also, each has at least two essential properties:
+  (1) \lstinline|bufferSize|
+  limits the number of jobs in the waiting area
+  and
+  (2)
+  \lstinline|numberOfServers| limits the number
+  of jobs in the service area.
+Both are of type \lstinline|int|,
+  and as usual,
+  \lstinline|Integer.MAX_VALUE|
+  is interpreted as infinity.
+
+The center of gravity,
+  i.e.,
+  the most general form,
+  of the first group is
+  the \lstinline|FCFS_B_c|
+  queueing system,
+  featuring user-settable
+  \lstinline|bufferSize|
+  (\lstinline|B|)
+  and
+  \lstinline|numberOfServers|
+  (\lstinline|c|)
+  essential properties.
+All other members in this group
+  are specializations of \lstinline|FCFS_B_c|
+  fixing one or both properties.
+In \lstinline|FCFS_B_c|,
+  in absence of queue-access vacations,
+  an arriving job is taking into service
+  {\em immediately}
+  (1) the queue has non-zero server-access credits, {\em and\/}
+  (2) the queue has strictly fewer jobs in the service area
+      than the value of the \lstinline|numberOfServers|
+      property (respecting the convention that
+      \lstinline|Integer_MAX_VALUE| represents infinity).
+Otherwise,
+  the arriving job is entered into
+  the waiting area of the queue (at the tail),
+  provided that
+  the current number of jobs in the waiting area
+  is strictly smaller that the \lstinline|bufferSize|
+  property.
+If this is not the case,
+  the arriving job is dropped.
+  
+In \lstinline|FCFS_B_c|,
+  the other epochs at which jobs are eligible to start
+  are (1) the granting of server-access credits,
+  (2) the scheduled departure of a job (from the service area)
+  or (3) the revocation of a job from the service area.
+In any of these cases,
+  if there are server-access credits,
+  servers available
+  (respecting the case of an infinite number of servers)
+  and jobs in the waiting area,
+  the job in the waiting area with the earliest
+  arrival time is started,
+  i.e.,
+  admitted to the service area.
+Once admitted to the service area,
+  a job is served until completion as prescribed by
+  its requested service time,
+  see Section \ref{sec:requested-service-time},
+  unless it is somehow revoked.
+  
+The second group of non-preemptive queues
+  listed in Table \ref{tab:non-preemptive-queues},
+  centered around \lstinline|LCFS_B|,
+  differs from the first group in only two ways:
+\begin{itemize}
+  \item In case of depletion of buffer space,
+          the job that arrived {\em earliest\/}
+          is dropped (instead of the arriving jobs).
+  \item The service area selects the job
+          that arrived latest as the eligible job to
+          start.
+\end{itemize}
+
+The remaining groups
+  in Table \ref{tab:non-preemptive-queues}
+  speak for themselves;
+  since each queue has infinite buffer space,
+  we do not have to worry about job drops.
+The only things different
+  from the previous groups
+  are the selection of jobs for admission
+  to the service area
+  or the time required
+  to serve a job
+  once admitted
+  to the service area.
+  
+\section{Preemptive Queues}
+\label{sec:preemptive-queues}
+
+Unlike non-preemptive queueing systems
+  described in the previous section,
+  preemptive queueing systems
+  do not always provide service to
+  jobs in the service area,
+  and may in fact interrupt ({\em preempt})
+  execution of a job in favor of another job
+  (in the service area).
+In Table \ref{tab:preemptive-queues},
+  we list all preemptive queues implemented in
+  \lstinline|jqueues|, accompanied with a brief
+  description.
+
+\begin{table}[!htbp]
+	\label{tab:preemptive-queues}
+	\caption{The preemptive queueing systems
+             in \texttt{jqueues} Release 5
+             at a glance.}
+	\begin{center}
+		\begin{tabular}{|l|l|}
+			\hline
+			\multicolumn{2}{|c|}{} \\
+			\multicolumn{2}{|c|}{Preemptive Queues} \\
+			\multicolumn{2}{|c|}{} \\
+			\hline
+            \hline
+              &
+              {\em Serves jobs until completion,}
+              \\
+              &
+              {\em as defined by the jobs'
+                   requested service times,}
+              \\
+              &
+              {\em or until preemption}
+              \\
+              &
+              {\em with a single server
+                   and infinite buffer size...}
+              \\
+              &
+              \\
+			\lstinline|P_LCFS|
+              &
+              {\em - in reverse arrival order.}
+              \\
+			\lstinline|SRTF|
+              &
+              {\em - in increasing order of
+                     remaining service time.}
+              \\
+            \hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+At the moment a job is preempted at a server,
+  one of several things can happen,
+  as determined by the \lstinline|preemptionStrategy|
+  essential property.
+In \lstinline|jqueues| Release 5,
+  the preemption strategy is of type \lstinline|enum|
+  named \lstinline|PreemptionStrategy|,
+  and it can take the following values:
+\begin{itemize}
+  \item \lstinline|DROP|: The preempted job is dropped.
+  \item \lstinline|RESUME|: The preempted job is put on hold,
+                              after calculating the remaining service time.
+                            Future service resumption continues
+                              at the point where the previous service
+                              was interrupted.
+                            (This is the default.) 
+  \item \lstinline|RESTART|: The preempted job is put on hold.
+                             Future service resumption
+                               requires the job to be served from scratch.
+  \item \lstinline|REDRAW|: The preempted job is put on hold.
+                            Future service resumption
+                              requires the job to be served from scratch
+                              with a new required service time.
+                            (This is not supported in \lstinline|jqueues| Release 5.)
+  \item \lstinline|DEPART|: The preempted job departs,
+                              even though it may not have finished
+                              its service requirements.
+  \item \lstinline|CUSTOM|: A different strategy that those mentioned
+                              above is applied to preempted jobs.
+                            The strategy needs to be specified
+                            in the concrete \lstinline|SimQueue| implementation.
+\end{itemize}
+Not all preemptive-queue implementations
+  support all preemption strategies.
+For instance, the \lstinline|REDRAW| strategy
+  is not supported by any implementation,
+  because it conflicts with the contract
+  that the requested service time of a \lstinline|SimJob|
+  has to remain constant
+  during a (single) \lstinline|SimQueue| visit.
+
+The preemption strategy
+  is a parameter that can be passed upon construction
+  to all implemented preemptive queues
+  in \lstinline|jqueues|.
+Its default value is \lstinline|RESUME|.
+If you pass an unsupported preemption strategy,
+  the queue will throw an \lstinline|UnsupportedOperationException|.
+
+For consistency with
+  non-preemptive queueing systems,
+  both \lstinline|P_LCFS| and \lstinline|SRTF|
+  support the
+  \lstinline|bufferSize|
+  and \lstinline|numberOfServers|
+  essential properties,
+  but their value are fixed
+  at
+  \lstinline|Integer.MAX_VALUE|,
+  representing infinity,
+  and unity,
+  respectively.
+  
+\section{Processor-Sharing Queues}
+
+In the preceding two sections
+  on non-preemptive and preemptive
+  queueing systems, respectively,
+  a common characteristic was that
+  the service area consists of
+  a countable number of servers,
+  each serving at most one job,
+  but not necessarily {\em all job\/}
+  in the service area (in particular,
+  this was found not to be true in general
+  for preemptive queues).
+In so-called {\em processor-sharing\/}
+  queueing systems,
+  most of this model still holds,
+  with the exception that
+  the a single server is capable of providing
+  service to {\em multiple\/} jobs simultaneously,
+  distributing its total service capacity
+  among them.
+They are of extreme theoretical importance in queueing theory,
+  because they often can be regarded as the limiting case
+  of "time sharing": Serving a single job for small amounts of time,
+  then saving its state
+  and resuming service to another job from its saved state.
+In Table \ref{tab:processor-sharing-queues},
+  we list all processor-sharing queues implemented in
+  \lstinline|jqueues|, accompanied with a brief
+  description.
+  
+\begin{table}[!htbp]
+	\label{tab:processor-sharing-queues}
+	\caption{The processor-sharing queueing systems
+             in \texttt{jqueues} Release 5
+             at a glance.}
+	\begin{center}
+		\begin{tabular}{|l|l|}
+			\hline
+			\multicolumn{2}{|c|}{} \\
+			\multicolumn{2}{|c|}{Processor-Sharing Queues} \\
+			\multicolumn{2}{|c|}{} \\
+			\hline
+            \hline
+              &
+              {\em Serves simultaneously with a single server and infinite buffer size,}
+              \\
+              &
+              {\em distributing its capacity among jobs in the service area...}
+              \\
+              &
+              \\
+			\lstinline|PS|
+              &
+              {\em - at equal rates.}
+              \\
+			\lstinline|CUPS|
+              &
+              {\em - with the lowest obtained service time at equal rates.}
+              \\
+			\lstinline|SocPS|
+              &
+              {\em - at rates linearly proportional to their remaining service times.}
+              \\
+            \hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+The three processor-sharing queues
+  have in common that they consist
+  of a single server in the service area,
+  and that in presence of a server-access credit,
+  and arriving job is admitted immediately to
+  the service area.
+The three systems only differ in the way
+  the server distributes its capacity
+  among jobs in the service area.
+
+The \lstinline|PS| implements
+  the (Egalitarian) Processor Sharing
+  queueing discipline
+  with a single server.
+It is probably well-known to many readers.
+In \lstinline|PS|,
+  the server simply distributes its capacity equally
+  among {\em all\/} jobs in the service area.
+
+In \lstinline|CUPS| (Catch-Up Processor Sharing),
+  the server distributes its capacity equally
+  among all jobs in the service area with the
+  lowest {\em obtained\/} service time.
+Whenever a job starts,
+  it enters the service area
+  with zero obtained service time,
+  and assuming there are no new arrivals after that,
+  it will therefore be served exclusively.
+The jobs that were served a priori,
+  will have to wait in the service area
+  until the new job has reached sufficient
+  service to "catch up"
+  and join that set.
+From that point on,
+  the server will distribute its capacity among
+  the "a priori set of jobs" augmented with the
+  newly arrived job.
+The resulting set of jobs
+  will be served at equal rates
+  until they catch up with the next set of jobs,
+  etc.
+In case a job has received sufficient
+  service as mandated by its requested service time,
+  it will leave the set of "jobs in service",
+  and if that set turns empty because of that,
+  \lstinline|CUPS| will switch to the next
+  set of jobs with minimum obtained service time,
+  if any.
+If not,
+  the server will turn idle.
+Intuitively,
+  \lstinline|CUPS| gives extreme preferential
+  treatment to jobs with small requested service time.
+To our knowledge,
+  the \lstinline|CUPS| queueing system has not been
+  described in queueing-system literature before\footnote{
+  But we have not fully checked this,
+  and would be highly interested in relevant references.}.
+
+In \lstinline|SocPS| (Social Processor Sharing),
+  the single server distributes its capacity
+  among jobs in the service area
+  at rate linearly proportional to their
+  {\em remaining service time}.
+This implies that,
+  ignoring for instance revocations,
+  {\em all jobs in the service area will depart at the same time.}
+This includes jobs with zero requested service time;
+  they will simply not be served if other jobs
+  with non-zero remaining service times are present
+  in the service area.
+As \lstinline|CUPS|, \lstinline|SocPS| is
+  a queueing discipline we have not found earlier
+  in literature.
+  
+For consistency with
+  non-preemptive and preemptive queueing systems
+  described earlier,
+  the processor-sharing implementations support the
+  \lstinline|bufferSize|
+  and \lstinline|numberOfServers|
+  essential properties,
+  but their value are fixed
+  at
+  \lstinline|Integer.MAX_VALUE|,
+  representing infinity,
+  and unity,
+  respectively.
+  
+\section{QoS Queues}
+\label{sec:qos-queues}
+
+We end this chapter with a separate presentation of
+  QoS queueing systems,
+  even though in \lstinline|jqueues|
+  each of the QoS queueing systems
+  could be categorized in one of the earlier
+  described classes (non-preemptive, preemptive
+  and processor-sharing queueing systems)
+  as well.
+Recall from Section \ref{sec:qos}
+  that in such systems,
+  visiting jobs are treated differently
+  corresponding to their membership of
+  some "group" of jobs\footnote{
+    We avoid the more common "job class" terminology
+    since it is highly confusing in the \lstinline|jqueues|
+    context.}.
+To that purpose,
+  jobs and queues need
+  non-\lstinline|null| and compatible
+  values for their \lstinline|qosClass|
+  property;
+  in addition,
+  each job needs a value
+  for its \lstinline|qosValue|
+  property, indicating the "group"
+  of jobs to which it belongs.
+In Table \ref{tab:qos-queues},
+  we list all QoS queues implemented in
+  \lstinline|jqueues|, accompanied with a brief
+  description.
+  
+\begin{table}[!htbp]
+	\label{tab:qos-queues}
+	\caption{The QoS queueing systems
+             in \texttt{jqueues} Release 5
+             at a glance.}
+	\begin{center}
+		\begin{tabular}{|l|l|}
+			\hline
+			\multicolumn{2}{|c|}{} \\
+			\multicolumn{2}{|c|}{QoS Queues} \\
+			\multicolumn{2}{|c|}{} \\
+			\hline
+            \hline
+			\lstinline|HOL|
+              &
+              {\em Serves jobs until completion
+                   in order of increasing \lstinline|QoS| values}
+              \\
+              &
+              {\em with a single server and infinite buffer size.}
+              \\
+              &
+              {\em Serves jobs identical \lstinline|QoS|
+                   values in arrival order.}
+              \\
+              &
+              {\em The server can serve at most one job at a time;}
+              \\
+              &
+              {\em it does not preempt jobs.}
+              \\
+              &
+              \\
+			\lstinline|PQ|
+              &
+              {\em Serves jobs until completion or preemption}
+              \\
+              &
+              {\em in order of increasing \lstinline|QoS| values}
+              \\
+              &
+              {\em with a single server and infinite buffer size.}
+              \\
+              &
+              {\em Preempts a job in service upon the start of another job}
+              \\
+              &
+              {\em with strictly smaller \lstinline|QoS| value.}
+              \\
+              &
+              {\em Serves jobs with identical \lstinline|QoS|
+                   values in arrival order.}
+              \\
+              &
+              {\em The server can serve at most one job at a time.}
+              \\
+              &
+              \\
+			\lstinline|HOL_PS|
+              &
+              {\em Serves simultaneously (equally distributing its capacity)}
+              \\
+              &
+              {\em all earliest-arrived jobs with distinct \lstinline|QoS| values}
+              \\
+              &
+              {\em with a single server and infinite buffer size.}
+              \\
+              &
+              {\em Serves jobs with identical \lstinline|QoS|
+                   values in arrival order.}
+              \\
+            \hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+From their brief description,
+  one deduces that \lstinline|HOL|
+  is a non-preemptive queueing system,
+  and that \lstinline|PQ|
+  and \lstinline|HOL_PS|
+  are preemptive and processor-sharing ones,
+  respectively.
+For \lstinline|HOL| and \lstinline|PQ|,
+  the \lstinline|qosClass| used must support
+  (at least) partial ordering of the values used.
+Therefore,
+  the \lstinline|qosClass| must be \lstinline|Comparable|
+  in the \lstinline|Java| sense.
+For \lstinline|HOL_PS|, this is not required,
+  any \lstinline|class|
+  or \lstinline|interface| will do;
+  the \lstinline|qosValue| property values
+  are compared using the \lstinline|Object.equals|
+  method,
+  following the convention in \lstinline|Java|'s
+  \lstinline|Set| interface in the
+  \lstinline|Collections| framework.
+  
+Since \lstinline|PQ| is a preemptive queueing system,
+  it supports the preemption strategy mechanism
+  introduced in Section \ref{sec:preemptive-queues}.
