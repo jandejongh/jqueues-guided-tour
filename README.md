@@ -1,7 +1,8 @@
 # jqueues-guided-tour
 A Guided Tour to the JQueues Java package for Discrete-Event Simulation of Queueing Systems
 
-### In Progress; expected first commit: April 15, 2018.
+### First Full Draft: May 3rd, 2018.
+First chapters are quite OK, but subsequent ones (Chapter 8 and beyond) need serious reviewing.
 
 ### Introduction
 The jqueues (https://github.com/jandejongh/jqueues) package and its dependency jsimulation (https://github.com/jandejongh/jsimulation) provide Java support for discrete-event simulation of queueing systems,
